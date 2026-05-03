@@ -1,0 +1,29 @@
+{
+  "name": "gantt-chart-workspace",
+  "image": "mcr.microsoft.com/devcontainers/javascript-node:1-22-bookworm",
+  "runArgs": [
+    "--add-host=host.docker.internal:host-gateway"
+  ],
+  "workspaceFolder": "/workspaces/project-sample-gannt-chart",
+  "customizations": {
+    "vscode": {
+      "settings": {
+        "terminal.integrated.defaultProfile.linux": "bash"
+      },
+      "extensions": [
+        "dbaeumer.vscode-eslint",
+        "esbenp.prettier-vscode",
+        "bradlc.vscode-tailwindcss",
+        "ms-vscode.vscode-typescript-next"
+      ]
+    }
+  },
+//  "appPort": ["5173:5173"],
+//   "forwardPorts": [5173],
+  "containerEnv": {
+    "VITE_API_BASE_URL": "http://host.docker.internal:8080"
+  },
+  "postCreateCommand": "cd frontend && npm install",
+  "postStartCommand": "node -v && cd frontend && npm -v",
+  "remoteUser": "node"
+}
