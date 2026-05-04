@@ -2,6 +2,7 @@ import type { Dependency, Holiday, Member, Task } from "@/models/gantt";
 
 export type GanttResponse = {
   projectName: string;
+  version: number;
   projectStartDate: string;
   projectEndDate: string;
   excludeNonWorkingDays: boolean;
@@ -13,6 +14,7 @@ export type GanttResponse = {
 
 export type SaveGanttPayload = {
   projectName: string;
+  version: number;
   projectStartDate: string;
   projectEndDate: string;
   excludeNonWorkingDays: boolean;
@@ -34,6 +36,7 @@ function normalizeResponse(data: GanttResponse): GanttResponse {
   return {
     ...data,
     projectName: data.projectName || "チーム進行ガントチャート",
+    version: Math.max(1, Number(data.version) || 1),
     excludeNonWorkingDays: Boolean(data.excludeNonWorkingDays),
     members: data.members ?? [],
     tasks: normalizeTasks(data.tasks ?? []),
@@ -44,6 +47,7 @@ function normalizeResponse(data: GanttResponse): GanttResponse {
 
 const fallbackData: GanttResponse = {
   projectName: "チーム進行ガントチャート",
+  version: 1,
   projectStartDate: "2026-05-01",
   projectEndDate: "2026-05-20",
   excludeNonWorkingDays: false,

@@ -86,6 +86,7 @@ public class TaskService {
 
         return new GanttResponseDto(
                 projectSettings.getProjectName(),
+                projectSettings.getVersion(),
                 projectSettings.getProjectStartDate(),
                 projectSettings.getProjectEndDate(),
                 projectSettings.isExcludeNonWorkingDays(),
@@ -239,6 +240,7 @@ public class TaskService {
                 request.projectEndDate(),
                 request.excludeNonWorkingDays()
         );
+        settings.incrementVersion();
         projectSettingsRepository.save(settings);
     }
 
@@ -249,7 +251,8 @@ public class TaskService {
                         "チーム進行ガントチャート",
                         LocalDate.now(),
                         LocalDate.now().plusDays(14),
-                        false
+                        false,
+                        1
                 )));
     }
 

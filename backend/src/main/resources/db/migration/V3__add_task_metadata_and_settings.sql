@@ -15,7 +15,8 @@ create table project_settings (
     project_name varchar(255) not null,
     project_start_date date not null,
     project_end_date date not null,
-    exclude_non_working_days boolean not null
+    exclude_non_working_days boolean not null,
+    version integer not null
 );
 
 insert into members (name, display_order) values
@@ -25,5 +26,5 @@ insert into members (name, display_order) values
 ('Aoi', 3),
 ('Sora', 4);
 
-insert into project_settings (id, project_name, project_start_date, project_end_date, exclude_non_working_days) values
-(1, 'チーム進行ガントチャート', '2026-05-01', '2026-05-20', false);
+insert into project_settings (id, project_name, project_start_date, project_end_date, exclude_non_working_days, version) values
+(1, 'チーム進行ガントチャート', '2026-05-01', '2026-05-20', false, 1);

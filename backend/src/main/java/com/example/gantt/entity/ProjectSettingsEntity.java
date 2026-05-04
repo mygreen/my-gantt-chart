@@ -26,6 +26,9 @@ public class ProjectSettingsEntity {
     @Column(name = "exclude_non_working_days", nullable = false)
     private boolean excludeNonWorkingDays;
 
+    @Column(name = "version", nullable = false)
+    private int version;
+
     protected ProjectSettingsEntity() {
     }
 
@@ -34,13 +37,15 @@ public class ProjectSettingsEntity {
             String projectName,
             LocalDate projectStartDate,
             LocalDate projectEndDate,
-            boolean excludeNonWorkingDays
+            boolean excludeNonWorkingDays,
+            int version
     ) {
         this.id = id;
         this.projectName = projectName;
         this.projectStartDate = projectStartDate;
         this.projectEndDate = projectEndDate;
         this.excludeNonWorkingDays = excludeNonWorkingDays;
+        this.version = version;
     }
 
     public Long getId() {
@@ -63,6 +68,10 @@ public class ProjectSettingsEntity {
         return excludeNonWorkingDays;
     }
 
+    public int getVersion() {
+        return version;
+    }
+
     public void update(
             String projectName,
             LocalDate projectStartDate,
@@ -73,5 +82,9 @@ public class ProjectSettingsEntity {
         this.projectStartDate = projectStartDate;
         this.projectEndDate = projectEndDate;
         this.excludeNonWorkingDays = excludeNonWorkingDays;
+    }
+
+    public void incrementVersion() {
+        this.version += 1;
     }
 }

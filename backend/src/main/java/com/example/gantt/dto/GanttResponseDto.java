@@ -5,6 +5,7 @@ import java.util.List;
 
 public record GanttResponseDto(
         String projectName,
+        int version,
         LocalDate projectStartDate,
         LocalDate projectEndDate,
         boolean excludeNonWorkingDays,

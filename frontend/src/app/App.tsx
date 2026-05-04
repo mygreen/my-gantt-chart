@@ -118,6 +118,7 @@ export function App() {
   const holidayUploadRef = useRef<HTMLInputElement | null>(null);
 
   const projectName = useGanttStore((state) => state.projectName);
+  const projectVersion = useGanttStore((state) => state.projectVersion);
   const projectStartDate = useGanttStore((state) => state.projectStartDate);
   const projectEndDate = useGanttStore((state) => state.projectEndDate);
   const members = useGanttStore((state) => state.members);
@@ -309,8 +310,13 @@ export function App() {
             <div className="flex h-full flex-col">
               <header className="sticky top-0 z-40 mb-4 rounded-lg border border-slate-200 bg-slate-50/95 shadow-sm backdrop-blur">
                 <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-200 px-4 py-3">
-                <div className="min-w-0">
-                    <h2 className="text-xl font-semibold text-slate-900">{projectName}</h2>
+                  <div className="min-w-0">
+                    <div className="flex items-center gap-2">
+                      <h2 className="text-xl font-semibold text-slate-900">{projectName}</h2>
+                      <span className="inline-flex items-center rounded-md border border-slate-200 bg-slate-50 px-2 py-0.5 text-xs font-medium text-slate-600">
+                        {`v${projectVersion}`}
+                      </span>
+                    </div>
                   </div>
 
                   <div className="flex flex-wrap items-center gap-2">

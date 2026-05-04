@@ -30,10 +30,13 @@ import type {
 type AddTaskMode = "child" | "sibling" | "tail";
 type StoreStatus = "idle" | "loading" | "ready" | "error";
 
-type PersistedState = SaveGanttPayload;
+type PersistedState = Omit<SaveGanttPayload, "version"> & {
+  projectVersion: number;
+};
 
 type GanttState = {
   projectName: string;
+  projectVersion: number;
   projectStartDate: string;
   projectEndDate: string;
   members: Member[];
@@ -108,6 +111,7 @@ type GanttState = {
 type DirtyComputableState = Pick<
   GanttState,
   | "projectName"
+  | "projectVersion"
   | "projectStartDate"
   | "projectEndDate"
   | "members"
@@ -209,9 +213,10 @@ function insertTaskByMode(
   return [...tasks.slice(0, insertIndex), newTask, ...tasks.slice(insertIndex)];
 }
 
-function buildPersistedState(source: DirtyComputableState): PersistedState {
+function buildPersistedState(source: DirtyComputableState): SaveGanttPayload {
   return {
     projectName: source.projectName,
+    version: source.projectVersion,
     projectStartDate: source.projectStartDate,
     projectEndDate: source.projectEndDate,
     excludeNonWorkingDays: source.excludeNonWorkingDays,
@@ -229,7 +234,7 @@ function buildPersistedState(source: DirtyComputableState): PersistedState {
   };
 }
 
-function serializePersistedState(source: PersistedState) {
+function serializePersistedState(source: SaveGanttPayload) {
   return JSON.stringify(source);
 }
 
@@ -259,6 +264,7 @@ function normalizeLoadedState(data: GanttResponse): PersistedState {
   const members = data.members.length > 0 ? data.members : deriveMembers(data.tasks);
   return {
     projectName: data.projectName,
+    projectVersion: data.version,
     projectStartDate: data.projectStartDate,
     projectEndDate: data.projectEndDate,
     excludeNonWorkingDays: data.excludeNonWorkingDays,
@@ -315,6 +321,7 @@ function restoreSavedState(
 
   return {
     projectName: savedState.projectName,
+    projectVersion: savedState.projectVersion,
     projectStartDate: savedState.projectStartDate,
     projectEndDate: savedState.projectEndDate,
     members: savedState.members,
@@ -333,6 +340,7 @@ const initialToday = new Date().toISOString().slice(0, 10);
 
 export const useGanttStore = create<GanttState>((set, get) => ({
   projectName: "チーム進行ガントチャート",
+  projectVersion: 1,
   projectStartDate: initialToday,
   projectEndDate: initialToday,
   members: [],
@@ -883,14 +891,15 @@ export const useGanttStore = create<GanttState>((set, get) => ({
         persisted.holidays,
         persisted.excludeNonWorkingDays,
       );
-      const savedState = buildPersistedState({
+      const savedState: PersistedState = {
         ...persisted,
         tasks: nextTasks,
-      });
-      const savedSnapshot = serializePersistedState(savedState);
+      };
+      const savedSnapshot = serializePersistedState(buildPersistedState(savedState));
 
       set({
         projectName: persisted.projectName,
+        projectVersion: persisted.projectVersion,
         projectStartDate: persisted.projectStartDate,
         projectEndDate: persisted.projectEndDate,
         members: persisted.members,
@@ -931,14 +940,15 @@ export const useGanttStore = create<GanttState>((set, get) => ({
         persisted.holidays,
         persisted.excludeNonWorkingDays,
       );
-      const savedState = buildPersistedState({
+      const savedState: PersistedState = {
         ...persisted,
         tasks: nextTasks,
-      });
-      const savedSnapshot = serializePersistedState(savedState);
+      };
+      const savedSnapshot = serializePersistedState(buildPersistedState(savedState));
 
       set({
         projectName: persisted.projectName,
+        projectVersion: persisted.projectVersion,
         projectStartDate: persisted.projectStartDate,
         projectEndDate: persisted.projectEndDate,
         members: persisted.members,
