@@ -31,6 +31,11 @@ export type Member = {
   name: string;
 };
 
+export type ProjectVersionSummary = {
+  version: number;
+  savedAt: string;
+};
+
 export type Viewport = {
   rowHeight: number;
   headerHeight: number;

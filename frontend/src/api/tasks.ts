@@ -1,4 +1,4 @@
-import type { Dependency, Holiday, Member, Task } from "@/models/gantt";
+import type { Dependency, Holiday, Member, ProjectVersionSummary, Task } from "@/models/gantt";
 
 export type GanttResponse = {
   projectName: string;
@@ -151,6 +151,29 @@ export async function saveTasks(payload: SaveGanttPayload): Promise<GanttRespons
       "Content-Type": "application/json",
     },
     body: JSON.stringify(payload),
+  });
+
+  if (!response.ok) {
+    throw new Error(`API request failed: ${response.status}`);
+  }
+
+  const data = (await response.json()) as GanttResponse;
+  return normalizeResponse(data);
+}
+
+export async function fetchProjectVersions(): Promise<ProjectVersionSummary[]> {
+  const response = await fetch("/api/tasks/versions");
+
+  if (!response.ok) {
+    throw new Error(`API request failed: ${response.status}`);
+  }
+
+  return (await response.json()) as ProjectVersionSummary[];
+}
+
+export async function restoreProjectVersion(version: number): Promise<GanttResponse> {
+  const response = await fetch(`/api/tasks/versions/${version}/restore`, {
+    method: "POST",
   });
 
   if (!response.ok) {

@@ -1,5 +1,12 @@
 import { create } from "zustand";
-import { fetchTasks, saveTasks, type GanttResponse, type SaveGanttPayload } from "@/api/tasks";
+import {
+  fetchProjectVersions,
+  fetchTasks,
+  restoreProjectVersion,
+  saveTasks,
+  type GanttResponse,
+  type SaveGanttPayload,
+} from "@/api/tasks";
 import {
   resizeTaskByDays,
   resizeTaskStartByDays,
@@ -21,6 +28,7 @@ import type {
   Holiday,
   InteractionMode,
   Member,
+  ProjectVersionSummary,
   Task,
   TaskType,
   TimelineScale,
@@ -43,6 +51,7 @@ type GanttState = {
   tasks: Task[];
   dependencies: Dependency[];
   holidays: Holiday[];
+  versionHistory: ProjectVersionSummary[];
   viewport: Viewport;
   showOwnerInSidebar: boolean;
   showStartDateInSidebar: boolean;
@@ -65,6 +74,8 @@ type GanttState = {
   setProjectSchedule: (startDate: string, endDate: string) => void;
   loadTasks: () => Promise<void>;
   saveChanges: () => Promise<void>;
+  loadVersionHistory: () => Promise<void>;
+  restoreVersion: (version: number) => Promise<void>;
   discardChanges: () => void;
   moveTaskByDays: (taskId: number, dayOffset: number) => void;
   resizeTaskByDays: (taskId: number, dayOffset: number) => void;
@@ -336,6 +347,43 @@ function restoreSavedState(
   };
 }
 
+function buildLoadedStateUpdate(
+  persisted: PersistedState,
+  previousSelectedTaskId: number | null,
+  previousTasks: Task[],
+) {
+  const nextTasks = applyTaskUpdates(
+    persisted.tasks,
+    persisted.holidays,
+    persisted.excludeNonWorkingDays,
+  );
+  const savedState: PersistedState = {
+    ...persisted,
+    tasks: nextTasks,
+  };
+  const savedSnapshot = serializePersistedState(buildPersistedState(savedState));
+
+  return {
+    projectName: persisted.projectName,
+    projectVersion: persisted.projectVersion,
+    projectStartDate: persisted.projectStartDate,
+    projectEndDate: persisted.projectEndDate,
+    members: persisted.members,
+    tasks: nextTasks,
+    dependencies: persisted.dependencies,
+    holidays: persisted.holidays,
+    excludeNonWorkingDays: persisted.excludeNonWorkingDays,
+    pendingDependencyFromTaskId: null,
+    selectedTaskId: findTaskSelection(previousSelectedTaskId, previousTasks, nextTasks),
+    collapsedTaskIds: [],
+    status: "ready" as const,
+    error: null,
+    savedState,
+    savedSnapshot,
+    hasUnsavedChanges: false,
+  };
+}
+
 const initialToday = new Date().toISOString().slice(0, 10);
 
 export const useGanttStore = create<GanttState>((set, get) => ({
@@ -347,6 +395,7 @@ export const useGanttStore = create<GanttState>((set, get) => ({
   tasks: [],
   dependencies: [],
   holidays: [],
+  versionHistory: [],
   viewport: defaultViewport,
   showOwnerInSidebar: true,
   showStartDateInSidebar: false,
@@ -886,35 +935,11 @@ export const useGanttStore = create<GanttState>((set, get) => ({
     try {
       const data = await fetchTasks();
       const persisted = normalizeLoadedState(data);
-      const nextTasks = applyTaskUpdates(
-        persisted.tasks,
-        persisted.holidays,
-        persisted.excludeNonWorkingDays,
-      );
-      const savedState: PersistedState = {
-        ...persisted,
-        tasks: nextTasks,
-      };
-      const savedSnapshot = serializePersistedState(buildPersistedState(savedState));
+      const versionHistory = await fetchProjectVersions();
 
       set({
-        projectName: persisted.projectName,
-        projectVersion: persisted.projectVersion,
-        projectStartDate: persisted.projectStartDate,
-        projectEndDate: persisted.projectEndDate,
-        members: persisted.members,
-        tasks: nextTasks,
-        dependencies: persisted.dependencies,
-        holidays: persisted.holidays,
-        excludeNonWorkingDays: persisted.excludeNonWorkingDays,
-        pendingDependencyFromTaskId: null,
-        selectedTaskId: findTaskSelection(previous.selectedTaskId, previous.tasks, nextTasks),
-        collapsedTaskIds: [],
-        status: "ready",
-        error: null,
-        savedState,
-        savedSnapshot,
-        hasUnsavedChanges: false,
+        ...buildLoadedStateUpdate(persisted, previous.selectedTaskId, previous.tasks),
+        versionHistory,
       });
     } catch (error) {
       set({
@@ -935,42 +960,51 @@ export const useGanttStore = create<GanttState>((set, get) => ({
     try {
       const response = await saveTasks(payload);
       const persisted = normalizeLoadedState(response);
-      const nextTasks = applyTaskUpdates(
-        persisted.tasks,
-        persisted.holidays,
-        persisted.excludeNonWorkingDays,
-      );
-      const savedState: PersistedState = {
-        ...persisted,
-        tasks: nextTasks,
-      };
-      const savedSnapshot = serializePersistedState(buildPersistedState(savedState));
+      const versionHistory = await fetchProjectVersions();
 
       set({
-        projectName: persisted.projectName,
-        projectVersion: persisted.projectVersion,
-        projectStartDate: persisted.projectStartDate,
-        projectEndDate: persisted.projectEndDate,
-        members: persisted.members,
-        tasks: nextTasks,
-        dependencies: persisted.dependencies,
-        holidays: persisted.holidays,
-        excludeNonWorkingDays: persisted.excludeNonWorkingDays,
-        selectedTaskId: findTaskSelection(selectedTaskId, previousTasks, nextTasks),
-        pendingDependencyFromTaskId: null,
-        collapsedTaskIds: [],
-        status: "ready",
-        error: null,
+        ...buildLoadedStateUpdate(persisted, selectedTaskId, previousTasks),
         isSaving: false,
-        savedState,
-        savedSnapshot,
-        hasUnsavedChanges: false,
+        versionHistory,
       });
     } catch (error) {
       set({
         isSaving: false,
         status: "error",
         error: error instanceof Error ? error.message : "保存に失敗しました。",
+      });
+    }
+  },
+
+  loadVersionHistory: async () => {
+    try {
+      const versionHistory = await fetchProjectVersions();
+      set({ versionHistory });
+    } catch (error) {
+      set({
+        status: "error",
+        error: error instanceof Error ? error.message : "バージョン一覧の読み込みに失敗しました。",
+      });
+    }
+  },
+
+  restoreVersion: async (version) => {
+    const state = get();
+    set({ status: "loading", error: null });
+
+    try {
+      const response = await restoreProjectVersion(version);
+      const persisted = normalizeLoadedState(response);
+      const versionHistory = await fetchProjectVersions();
+
+      set({
+        ...buildLoadedStateUpdate(persisted, state.selectedTaskId, state.tasks),
+        versionHistory,
+      });
+    } catch (error) {
+      set({
+        status: "error",
+        error: error instanceof Error ? error.message : "バージョンの復元に失敗しました。",
       });
     }
   },

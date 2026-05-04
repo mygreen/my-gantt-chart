@@ -13,6 +13,7 @@ import {
   FilePlus2,
   FolderPlus,
   GitBranch,
+  History,
   MoveHorizontal,
   RefreshCw,
   RotateCcw,
@@ -29,7 +30,7 @@ import type { Holiday, Task, TimelineScale } from "@/models/gantt";
 import { useGanttStore } from "@/stores/useGanttStore";
 import { cn } from "@/utils/cn";
 
-type AppView = "gantt" | "project" | "holiday" | "members";
+type AppView = "gantt" | "project" | "holiday" | "versions" | "members";
 
 const timelineScaleOptions: Array<{ value: TimelineScale; label: string }> = [
   { value: "day", label: "日" },
@@ -47,6 +48,8 @@ const appViews: Array<{
   { id: "holiday", label: "祝日設定", icon: CalendarDays },
   { id: "members", label: "メンバー設定", icon: Users },
 ];
+
+appViews.splice(3, 0, { id: "versions", label: "バージョン管理", icon: History });
 
 function buildParentTaskCandidates(
   tasks: Task[],
@@ -124,8 +127,11 @@ export function App() {
   const members = useGanttStore((state) => state.members);
   const tasks = useGanttStore((state) => state.tasks);
   const holidays = useGanttStore((state) => state.holidays);
+  const versionHistory = useGanttStore((state) => state.versionHistory);
   const loadTasks = useGanttStore((state) => state.loadTasks);
+  const loadVersionHistory = useGanttStore((state) => state.loadVersionHistory);
   const saveChanges = useGanttStore((state) => state.saveChanges);
+  const restoreVersion = useGanttStore((state) => state.restoreVersion);
   const discardChanges = useGanttStore((state) => state.discardChanges);
   const addTask = useGanttStore((state) => state.addTask);
   const deleteTask = useGanttStore((state) => state.deleteTask);
@@ -194,6 +200,12 @@ export function App() {
     void loadTasks();
   }, [loadTasks]);
 
+  useEffect(() => {
+    if (activeView === "versions") {
+      void loadVersionHistory();
+    }
+  }, [activeView, loadVersionHistory]);
+
   const handleHolidayUpload = async (event: ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     if (!file) {
@@ -234,6 +246,20 @@ export function App() {
     }
 
     await loadTasks();
+  };
+
+  const handleRestoreVersion = async (version: number) => {
+    const message = hasUnsavedChanges
+      ? `未保存の変更を破棄して v${version} の内容で復元しますか？復元後は新しい版として保存されます。`
+      : `v${version} の内容で復元しますか？復元後は新しい版として保存されます。`;
+
+    if (!window.confirm(message)) {
+      return;
+    }
+
+    await restoreVersion(version);
+    await loadVersionHistory();
+    setActiveView("gantt");
   };
 
   return (
@@ -921,6 +947,68 @@ export function App() {
                         </button>
                       </div>
                     ))}
+                  </div>
+                </div>
+              </section>
+            </div>
+          ) : null}
+
+          {activeView === "versions" ? (
+            <div className="flex h-full flex-col gap-4 overflow-auto">
+              <section className="rounded-lg border border-slate-200 bg-white p-5 shadow-sm">
+                <div className="flex flex-wrap items-center justify-between gap-3">
+                  <div>
+                    <h2 className="text-lg font-semibold text-slate-900">バージョン管理</h2>
+                    <p className="mt-1 text-sm text-slate-500">
+                      保存済みの版を新しい最新版として復元できます。
+                    </p>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => void loadVersionHistory()}
+                    className="inline-flex h-9 items-center gap-2 rounded-md border border-slate-200 bg-white px-3 text-sm font-medium text-slate-700 transition hover:border-cyan-300 hover:text-cyan-700"
+                  >
+                    <RefreshCw className="h-4 w-4" />
+                    一覧更新
+                  </button>
+                </div>
+
+                <div className="mt-4 overflow-hidden rounded-md border border-slate-200">
+                  <div className="grid grid-cols-[120px_180px_96px] border-b border-slate-200 bg-slate-50 px-3 py-2 text-[11px] font-semibold text-slate-600">
+                    <span>バージョン</span>
+                    <span>保存日時</span>
+                    <span className="text-right">操作</span>
+                  </div>
+                  <div className="divide-y divide-slate-200">
+                    {versionHistory.map((item) => (
+                      <div
+                        key={item.version}
+                        className="grid grid-cols-[120px_180px_96px] items-center gap-3 px-3 py-2"
+                      >
+                        <span className="text-sm font-medium text-slate-800">{`v${item.version}`}</span>
+                        <span className="text-sm text-slate-600">
+                          {new Date(item.savedAt).toLocaleString("ja-JP", {
+                            year: "numeric",
+                            month: "2-digit",
+                            day: "2-digit",
+                            hour: "2-digit",
+                            minute: "2-digit",
+                          })}
+                        </span>
+                        <div className="flex justify-end">
+                          <button
+                            type="button"
+                            onClick={() => void handleRestoreVersion(item.version)}
+                            className="inline-flex h-9 items-center gap-2 rounded-md border border-slate-200 bg-white px-3 text-sm font-medium text-slate-700 transition hover:border-cyan-300 hover:text-cyan-700"
+                          >
+                            復元
+                          </button>
+                        </div>
+                      </div>
+                    ))}
+                    {versionHistory.length === 0 ? (
+                      <div className="px-3 py-6 text-sm text-slate-500">保存済みの版はまだありません。</div>
+                    ) : null}
                   </div>
                 </div>
               </section>

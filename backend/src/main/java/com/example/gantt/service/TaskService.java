@@ -5,6 +5,7 @@ import com.example.gantt.dto.DependencyDto;
 import com.example.gantt.dto.GanttResponseDto;
 import com.example.gantt.dto.HolidayDto;
 import com.example.gantt.dto.MemberDto;
+import com.example.gantt.dto.ProjectVersionSummaryDto;
 import com.example.gantt.dto.SaveDependencyRequest;
 import com.example.gantt.dto.SaveGanttRequest;
 import com.example.gantt.dto.SaveHolidayRequest;
@@ -15,6 +16,7 @@ import com.example.gantt.entity.DependencyEntity;
 import com.example.gantt.entity.HolidayEntity;
 import com.example.gantt.entity.MemberEntity;
 import com.example.gantt.entity.ProjectSettingsEntity;
+import com.example.gantt.entity.ProjectVersionEntity;
 import com.example.gantt.entity.TaskEntity;
 import com.example.gantt.entity.TaskStatus;
 import com.example.gantt.entity.TaskType;
@@ -22,11 +24,15 @@ import com.example.gantt.repository.DependencyRepository;
 import com.example.gantt.repository.HolidayRepository;
 import com.example.gantt.repository.MemberRepository;
 import com.example.gantt.repository.ProjectSettingsRepository;
+import com.example.gantt.repository.ProjectVersionRepository;
 import com.example.gantt.repository.TaskRepository;
 import jakarta.transaction.Transactional;
+import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
+import org.springframework.web.server.ResponseStatusException;
 
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.HashMap;
@@ -36,6 +42,9 @@ import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
 import java.util.stream.Collectors;
+
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.ObjectMapper;
 
 @Service
 @Transactional
@@ -48,19 +57,25 @@ public class TaskService {
     private final HolidayRepository holidayRepository;
     private final MemberRepository memberRepository;
     private final ProjectSettingsRepository projectSettingsRepository;
+    private final ProjectVersionRepository projectVersionRepository;
+    private final ObjectMapper objectMapper;
 
     public TaskService(
             TaskRepository taskRepository,
             DependencyRepository dependencyRepository,
             HolidayRepository holidayRepository,
             MemberRepository memberRepository,
-            ProjectSettingsRepository projectSettingsRepository
+            ProjectSettingsRepository projectSettingsRepository,
+            ProjectVersionRepository projectVersionRepository,
+            ObjectMapper objectMapper
     ) {
         this.taskRepository = taskRepository;
         this.dependencyRepository = dependencyRepository;
         this.holidayRepository = holidayRepository;
         this.memberRepository = memberRepository;
         this.projectSettingsRepository = projectSettingsRepository;
+        this.projectVersionRepository = projectVersionRepository;
+        this.objectMapper = objectMapper;
     }
 
     @Transactional
@@ -208,7 +223,34 @@ public class TaskService {
         }
         memberRepository.saveAll(memberEntities);
 
-        return getGanttBoard();
+        GanttResponseDto response = getGanttBoard();
+        saveProjectVersionSnapshot(response, request);
+        return response;
+    }
+
+    public List<ProjectVersionSummaryDto> getProjectVersions() {
+        return projectVersionRepository.findAllByOrderByVersionDesc().stream()
+                .map(ProjectVersionSummaryDto::fromEntity)
+                .toList();
+    }
+
+    public GanttResponseDto restoreProjectVersion(int version) {
+        ProjectVersionEntity projectVersion = projectVersionRepository.findByVersion(version)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Version not found"));
+
+        try {
+            SaveGanttRequest snapshot = objectMapper.readValue(
+                    projectVersion.getSnapshotJson(),
+                    SaveGanttRequest.class
+            );
+            return saveGanttBoard(snapshot);
+        } catch (JsonProcessingException exception) {
+            throw new ResponseStatusException(
+                    HttpStatus.INTERNAL_SERVER_ERROR,
+                    "Failed to restore version snapshot",
+                    exception
+            );
+        }
     }
 
     public TaskDto createTask(CreateTaskRequest request) {
@@ -291,5 +333,36 @@ public class TaskService {
         return request.members().stream()
                 .filter(member -> member.name() != null && !member.name().isBlank())
                 .toList();
+    }
+
+    private void saveProjectVersionSnapshot(GanttResponseDto response, SaveGanttRequest request) {
+        SaveGanttRequest snapshot = new SaveGanttRequest(
+                response.projectName(),
+                response.version(),
+                response.projectStartDate(),
+                response.projectEndDate(),
+                response.excludeNonWorkingDays(),
+                request.members(),
+                request.tasks(),
+                request.dependencies(),
+                request.holidays()
+        );
+
+        try {
+            String snapshotJson = objectMapper.writeValueAsString(snapshot);
+            projectVersionRepository.save(
+                    new ProjectVersionEntity(
+                            response.version(),
+                            LocalDateTime.now(),
+                            snapshotJson
+                    )
+            );
+        } catch (JsonProcessingException exception) {
+            throw new ResponseStatusException(
+                    HttpStatus.INTERNAL_SERVER_ERROR,
+                    "Failed to save version snapshot",
+                    exception
+            );
+        }
     }
 }

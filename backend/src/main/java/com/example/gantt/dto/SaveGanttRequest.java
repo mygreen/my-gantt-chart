@@ -5,6 +5,7 @@ import java.util.List;
 
 public record SaveGanttRequest(
         String projectName,
+        int version,
         LocalDate projectStartDate,
         LocalDate projectEndDate,
         boolean excludeNonWorkingDays,
