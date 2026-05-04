@@ -77,6 +77,9 @@ export function GanttBoard() {
   );
 
   const [scrollTop, setScrollTop] = useState(0);
+  const [rawScrollTop, setRawScrollTop] = useState(0);
+  const [scrollLeft, setScrollLeft] = useState(0);
+  const [viewportWidth, setViewportWidth] = useState(0);
   const [contextMenu, setContextMenu] = useState<ContextMenuState | null>(null);
 
   useEffect(() => {
@@ -117,6 +120,7 @@ export function GanttBoard() {
     showStartDateInSidebar,
     showEndDateInSidebar,
   );
+  const visibleBoardWidth = Math.max(viewportWidth - viewport.sidebarWidth, 0);
 
   const handleTaskContextMenu = (taskId: number, event: ReactMouseEvent<HTMLDivElement>) => {
     event.preventDefault();
@@ -147,13 +151,26 @@ export function GanttBoard() {
     <div
       className="relative h-full overflow-auto"
       onScroll={(event) => {
-        setScrollTop(Math.max(0, event.currentTarget.scrollTop - viewport.headerHeight));
+        const nextScrollTop = event.currentTarget.scrollTop;
+        setScrollTop(Math.max(0, nextScrollTop - viewport.headerHeight));
+        setRawScrollTop(nextScrollTop);
+        setScrollLeft(event.currentTarget.scrollLeft);
+        setViewportWidth(event.currentTarget.clientWidth);
         setContextMenu(null);
       }}
+      ref={(node) => {
+        if (!node) {
+          return;
+        }
+
+        if (viewportWidth !== node.clientWidth) {
+          setViewportWidth(node.clientWidth);
+        }
+      }}
     >
-      <div className="sticky top-0 z-30 flex min-w-max bg-white">
+      <div className="sticky top-0 z-50 flex min-w-max bg-white">
         <div
-          className="sticky left-0 z-40 shrink-0 border-r border-slate-200 bg-slate-50"
+          className="sticky left-0 z-[60] shrink-0 border-r border-slate-200 bg-slate-50"
           style={{ width: viewport.sidebarWidth }}
         >
           <div
@@ -180,12 +197,12 @@ export function GanttBoard() {
 
       <div className="flex min-w-max">
         <div
-          className="sticky left-0 z-20 shrink-0 bg-white"
+          className="relative sticky left-0 z-30 shrink-0 bg-white"
           style={{ width: viewport.sidebarWidth }}
         >
           {milestoneTasks.length > 0 ? (
             <div
-              className="sticky z-30 grid items-center gap-2 border-b border-slate-200 bg-amber-50/95 pl-2 pr-3 backdrop-blur"
+              className="sticky z-40 grid items-center gap-2 border-b border-slate-200 bg-amber-50/95 pl-2 pr-3 backdrop-blur"
               style={{
                 top: viewport.headerHeight,
                 height: viewport.rowHeight,
@@ -217,7 +234,7 @@ export function GanttBoard() {
         </div>
 
         <div
-          className="relative shrink-0 bg-white"
+          className="relative z-0 shrink-0 bg-white"
           style={{ width: boardWidth, height: boardHeight }}
         >
           {milestoneTasks.length > 0 ? (
@@ -254,6 +271,7 @@ export function GanttBoard() {
               />
             </div>
           ) : null}
+
           <GridLayer
             timelineCells={timelineCells}
             cellWidth={viewport.dayWidth}
@@ -290,6 +308,9 @@ export function GanttBoard() {
             width={boardWidth}
             height={boardHeight}
             topOffset={inazumaTopOffset}
+            viewportTop={rawScrollTop}
+            viewportLeft={scrollLeft}
+            viewportWidth={visibleBoardWidth}
           />
         </div>
       </div>

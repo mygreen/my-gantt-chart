@@ -126,6 +126,7 @@ export function MilestoneLayer({
         const dragOffset = dragState?.taskId === task.id ? dragState.dayOffset * dayWidth : 0;
         const isDragging = dragState?.taskId === task.id;
         const overlapOffset = overlapOffsets.get(index) ?? { x: 0, y: 0 };
+        const x = Math.max(4, layout.x + overlapOffset.x + dragOffset);
 
         return (
           <div
@@ -142,7 +143,7 @@ export function MilestoneLayer({
                   : "cursor-grab",
             )}
             style={{
-              transform: `translate(${layout.x + overlapOffset.x + dragOffset}px, ${milestoneLaneTop + overlapOffset.y}px)`,
+              transform: `translate(${x}px, ${milestoneLaneTop + overlapOffset.y}px)`,
               maxWidth: 180,
               zIndex: isDragging ? 30 : 20,
             }}

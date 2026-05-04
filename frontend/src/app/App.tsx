@@ -30,9 +30,9 @@ import { cn } from "@/utils/cn";
 type AppView = "gantt" | "project" | "holiday" | "members";
 
 const timelineScaleOptions: Array<{ value: TimelineScale; label: string }> = [
-  { value: "month", label: "月" },
-  { value: "week", label: "週" },
   { value: "day", label: "日" },
+  { value: "week", label: "週" },
+  { value: "month", label: "月" },
 ];
 
 const appViews: Array<{
@@ -224,7 +224,7 @@ export function App() {
                 )}
               >
                 <CalendarRange className="h-4 w-4" />
-                {!isSidebarCollapsed ? <span>ガントチャート Web アプリ</span> : null}
+                {!isSidebarCollapsed ? <span>My ガントチャート</span> : null}
               </div>
               <button
                 type="button"
@@ -241,7 +241,7 @@ export function App() {
               </button>
             </div>
             {!isSidebarCollapsed ? (
-              <h1 className="mt-3 text-lg font-semibold text-slate-900">{projectName}</h1>
+              <h1 className="mt-3 text-sm font-medium text-slate-600">{projectName}</h1>
             ) : null}
           </div>
 
@@ -275,12 +275,8 @@ export function App() {
             <div className="flex h-full flex-col">
               <header className="sticky top-0 z-40 mb-4 rounded-lg border border-slate-200 bg-slate-50/95 shadow-sm backdrop-blur">
                 <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-200 px-4 py-3">
-                  <div className="min-w-0">
-                    <div className="inline-flex items-center gap-2 rounded-md border border-cyan-200 bg-cyan-50 px-3 py-1 text-xs font-medium text-cyan-700">
-                      <CalendarRange className="h-4 w-4" />
-                      ガントチャート Web アプリ
-                    </div>
-                    <h2 className="mt-2 text-xl font-semibold text-slate-900">{projectName}</h2>
+                <div className="min-w-0">
+                    <h2 className="text-xl font-semibold text-slate-900">{projectName}</h2>
                   </div>
 
                   <div className="flex flex-wrap items-center gap-2">
@@ -394,6 +390,9 @@ export function App() {
                       >
                         <FilePlus2 className="h-4 w-4" />
                       </button>
+                    </div>
+
+                    <div className="inline-flex rounded-md border border-slate-200 bg-white p-1">
                       <button
                         type="button"
                         onClick={() => void loadTasks()}
@@ -659,26 +658,29 @@ export function App() {
                           <button
                             type="button"
                             onClick={() => moveTaskUp(selectedTask.id)}
-                            className="inline-flex h-9 items-center gap-2 rounded-md border border-slate-200 bg-white px-3 text-sm font-medium text-slate-700 transition hover:border-cyan-300 hover:text-cyan-700"
+                            title="上へ移動"
+                            aria-label="上へ移動"
+                            className="inline-flex h-9 w-9 items-center justify-center rounded-md border border-slate-200 bg-white text-slate-700 transition hover:border-cyan-300 hover:text-cyan-700"
                           >
                             <ArrowUp className="h-4 w-4" />
-                            上へ
                           </button>
                           <button
                             type="button"
                             onClick={() => moveTaskDown(selectedTask.id)}
-                            className="inline-flex h-9 items-center gap-2 rounded-md border border-slate-200 bg-white px-3 text-sm font-medium text-slate-700 transition hover:border-cyan-300 hover:text-cyan-700"
+                            title="下へ移動"
+                            aria-label="下へ移動"
+                            className="inline-flex h-9 w-9 items-center justify-center rounded-md border border-slate-200 bg-white text-slate-700 transition hover:border-cyan-300 hover:text-cyan-700"
                           >
                             <ArrowDown className="h-4 w-4" />
-                            下へ
                           </button>
                           <button
                             type="button"
                             onClick={() => deleteTask(selectedTask.id)}
-                            className="inline-flex h-9 items-center gap-2 rounded-md border border-rose-200 bg-rose-50 px-3 text-sm font-medium text-rose-700 transition hover:border-rose-300 hover:bg-rose-100"
+                            title="削除"
+                            aria-label="削除"
+                            className="inline-flex h-9 w-9 items-center justify-center rounded-md border border-rose-200 bg-rose-50 text-rose-700 transition hover:border-rose-300 hover:bg-rose-100"
                           >
                             <Trash2 className="h-4 w-4" />
-                            削除
                           </button>
                         </div>
                       </div>
@@ -712,7 +714,7 @@ export function App() {
             <div className="flex h-full flex-col gap-4 overflow-auto">
               <section className="rounded-lg border border-slate-200 bg-white p-5 shadow-sm">
                 <h2 className="text-lg font-semibold text-slate-900">基本設定</h2>
-                <div className="mt-4 grid gap-4 lg:grid-cols-[minmax(0,1.4fr)_180px_180px]">
+                <div className="mt-4 grid gap-4">
                   <label className="flex flex-col gap-1">
                     <span className="text-[11px] font-medium text-slate-600">プロジェクト名</span>
                     <input
@@ -722,24 +724,26 @@ export function App() {
                       className="h-10 rounded-md border border-slate-200 bg-white px-3 text-sm text-slate-900 outline-none transition focus:border-cyan-300"
                     />
                   </label>
-                  <label className="flex flex-col gap-1">
-                    <span className="text-[11px] font-medium text-slate-600">開始日</span>
-                    <input
-                      type="date"
-                      value={projectStartDate}
-                      onChange={(event) => setProjectSchedule(event.target.value, projectEndDate)}
-                      className="h-10 rounded-md border border-slate-200 bg-white px-3 text-sm text-slate-900 outline-none transition focus:border-cyan-300"
-                    />
-                  </label>
-                  <label className="flex flex-col gap-1">
-                    <span className="text-[11px] font-medium text-slate-600">終了日</span>
-                    <input
-                      type="date"
-                      value={projectEndDate}
-                      onChange={(event) => setProjectSchedule(projectStartDate, event.target.value)}
-                      className="h-10 rounded-md border border-slate-200 bg-white px-3 text-sm text-slate-900 outline-none transition focus:border-cyan-300"
-                    />
-                  </label>
+                  <div className="grid gap-4 sm:grid-cols-2 lg:max-w-[380px]">
+                    <label className="flex flex-col gap-1">
+                      <span className="text-[11px] font-medium text-slate-600">開始日</span>
+                      <input
+                        type="date"
+                        value={projectStartDate}
+                        onChange={(event) => setProjectSchedule(event.target.value, projectEndDate)}
+                        className="h-10 rounded-md border border-slate-200 bg-white px-3 text-sm text-slate-900 outline-none transition focus:border-cyan-300"
+                      />
+                    </label>
+                    <label className="flex flex-col gap-1">
+                      <span className="text-[11px] font-medium text-slate-600">終了日</span>
+                      <input
+                        type="date"
+                        value={projectEndDate}
+                        onChange={(event) => setProjectSchedule(projectStartDate, event.target.value)}
+                        className="h-10 rounded-md border border-slate-200 bg-white px-3 text-sm text-slate-900 outline-none transition focus:border-cyan-300"
+                      />
+                    </label>
+                  </div>
                 </div>
               </section>
             </div>

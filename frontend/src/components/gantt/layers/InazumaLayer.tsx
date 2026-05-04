@@ -13,6 +13,9 @@ type InazumaLayerProps = {
   width: number;
   height: number;
   topOffset?: number;
+  viewportTop?: number;
+  viewportLeft?: number;
+  viewportWidth?: number;
 };
 
 function buildPointString(points: InazumaPoint[]) {
@@ -63,6 +66,9 @@ export function InazumaLayer({
   width,
   height,
   topOffset = 0,
+  viewportTop = 0,
+  viewportLeft = 0,
+  viewportWidth = width,
 }: InazumaLayerProps) {
   const baselineX = getDateOffsetInTimeline(baselineDate, timelineCells, cellWidth);
   if (baselineX === null) {
@@ -85,6 +91,12 @@ export function InazumaLayer({
   }
 
   const delayedCount = points.filter((point) => point.isDelayed).length;
+  const badgeWidth = 142;
+  const badgeX = Math.min(
+    Math.max(viewportLeft + Math.max(viewportWidth - badgeWidth - 16, 8), 8),
+    Math.max(width - badgeWidth, 8),
+  );
+  const badgeY = viewportTop + topOffset + 8;
 
   return (
     <svg className="pointer-events-none absolute inset-0 z-20" width={width} height={height}>
@@ -124,10 +136,10 @@ export function InazumaLayer({
           />
         ))}
       </g>
-      <g transform={`translate(${Math.max(width - 150, 8)}, ${topOffset + 8})`}>
-        <rect width="142" height="24" rx="12" fill="#ffffff" stroke="#fecaca" />
+      <g transform={`translate(${badgeX}, ${badgeY})`}>
+        <rect width={badgeWidth} height="24" rx="12" fill="#ffffff" stroke="#fecaca" />
         <text
-          x="71"
+          x={badgeWidth / 2}
           y="16"
           textAnchor="middle"
           fontSize="11"
