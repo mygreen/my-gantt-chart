@@ -15,7 +15,9 @@ import {
   GitBranch,
   MoveHorizontal,
   RefreshCw,
+  RotateCcw,
   Rows3,
+  Save,
   Settings2,
   Trash2,
   Upload,
@@ -122,12 +124,16 @@ export function App() {
   const tasks = useGanttStore((state) => state.tasks);
   const holidays = useGanttStore((state) => state.holidays);
   const loadTasks = useGanttStore((state) => state.loadTasks);
+  const saveChanges = useGanttStore((state) => state.saveChanges);
+  const discardChanges = useGanttStore((state) => state.discardChanges);
   const addTask = useGanttStore((state) => state.addTask);
   const deleteTask = useGanttStore((state) => state.deleteTask);
   const moveTaskUp = useGanttStore((state) => state.moveTaskUp);
   const moveTaskDown = useGanttStore((state) => state.moveTaskDown);
   const status = useGanttStore((state) => state.status);
   const error = useGanttStore((state) => state.error);
+  const hasUnsavedChanges = useGanttStore((state) => state.hasUnsavedChanges);
+  const isSaving = useGanttStore((state) => state.isSaving);
   const interactionMode = useGanttStore((state) => state.interactionMode);
   const pendingDependencyFromTaskId = useGanttStore((state) => state.pendingDependencyFromTaskId);
   const selectedTaskId = useGanttStore((state) => state.selectedTaskId);
@@ -199,6 +205,34 @@ export function App() {
     } finally {
       event.target.value = "";
     }
+  };
+
+  const handleSave = async () => {
+    if (!window.confirm("現在の編集内容を保存しますか？")) {
+      return;
+    }
+
+    await saveChanges();
+  };
+
+  const handleDiscard = () => {
+    if (!window.confirm("保存していない変更を破棄しますか？")) {
+      return;
+    }
+
+    discardChanges();
+  };
+
+  const handleReload = async () => {
+    const message = hasUnsavedChanges
+      ? "最新の保存状態を再読み込みしますか？ 保存していない変更は破棄されます。"
+      : "最新の保存状態を再読み込みしますか？";
+
+    if (!window.confirm(message)) {
+      return;
+    }
+
+    await loadTasks();
   };
 
   return (
@@ -395,7 +429,40 @@ export function App() {
                     <div className="inline-flex rounded-md border border-slate-200 bg-white p-1">
                       <button
                         type="button"
-                        onClick={() => void loadTasks()}
+                        onClick={() => void handleSave()}
+                        disabled={isSaving || !hasUnsavedChanges}
+                        title="保存"
+                        aria-label="保存"
+                        className={cn(
+                          "inline-flex h-9 w-9 items-center justify-center rounded text-sm font-medium transition",
+                          isSaving || !hasUnsavedChanges
+                            ? "cursor-not-allowed text-slate-400"
+                            : "text-slate-700 hover:bg-cyan-50 hover:text-cyan-700",
+                        )}
+                      >
+                        <Save className="h-4 w-4" />
+                      </button>
+                      <button
+                        type="button"
+                        onClick={handleDiscard}
+                        disabled={!hasUnsavedChanges}
+                        title="編集を破棄"
+                        aria-label="編集を破棄"
+                        className={cn(
+                          "inline-flex h-9 w-9 items-center justify-center rounded text-sm font-medium transition",
+                          hasUnsavedChanges
+                            ? "text-slate-700 hover:bg-cyan-50 hover:text-cyan-700"
+                            : "cursor-not-allowed text-slate-400",
+                        )}
+                      >
+                        <RotateCcw className="h-4 w-4" />
+                      </button>
+                    </div>
+
+                    <div className="inline-flex rounded-md border border-slate-200 bg-white p-1">
+                      <button
+                        type="button"
+                        onClick={() => void handleReload()}
                         title="再読み込み"
                         aria-label="再読み込み"
                         className="inline-flex h-9 w-9 items-center justify-center rounded text-sm font-medium text-slate-700 transition hover:bg-cyan-50 hover:text-cyan-700"

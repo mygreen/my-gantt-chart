@@ -38,16 +38,39 @@ public class TaskEntity {
     @Column(nullable = false)
     private TaskStatus status;
 
+    @Column(name = "parent_task_id")
+    private Long parentTaskId;
+
+    @Enumerated(EnumType.STRING)
+    @Column(name = "task_type", nullable = false)
+    private TaskType taskType;
+
+    @Column(name = "display_order", nullable = false)
+    private int displayOrder;
+
     protected TaskEntity() {
     }
 
-    public TaskEntity(String name, String owner, LocalDate startDate, LocalDate endDate, int progress, TaskStatus status) {
+    public TaskEntity(
+            String name,
+            String owner,
+            LocalDate startDate,
+            LocalDate endDate,
+            int progress,
+            TaskStatus status,
+            Long parentTaskId,
+            TaskType taskType,
+            int displayOrder
+    ) {
         this.name = name;
         this.owner = owner;
         this.startDate = startDate;
         this.endDate = endDate;
         this.progress = progress;
         this.status = status;
+        this.parentTaskId = parentTaskId;
+        this.taskType = taskType;
+        this.displayOrder = displayOrder;
     }
 
     public Long getId() {
@@ -78,12 +101,41 @@ public class TaskEntity {
         return status;
     }
 
-    public void update(String name, String owner, LocalDate startDate, LocalDate endDate, int progress, TaskStatus status) {
+    public Long getParentTaskId() {
+        return parentTaskId;
+    }
+
+    public TaskType getTaskType() {
+        return taskType;
+    }
+
+    public int getDisplayOrder() {
+        return displayOrder;
+    }
+
+    public void update(
+            String name,
+            String owner,
+            LocalDate startDate,
+            LocalDate endDate,
+            int progress,
+            TaskStatus status,
+            Long parentTaskId,
+            TaskType taskType,
+            int displayOrder
+    ) {
         this.name = name;
         this.owner = owner;
         this.startDate = startDate;
         this.endDate = endDate;
         this.progress = progress;
         this.status = status;
+        this.parentTaskId = parentTaskId;
+        this.taskType = taskType;
+        this.displayOrder = displayOrder;
+    }
+
+    public void updateParentTaskId(Long parentTaskId) {
+        this.parentTaskId = parentTaskId;
     }
 }

@@ -1,6 +1,22 @@
-import type { Dependency, Holiday, Task } from "@/models/gantt";
+import type { Dependency, Holiday, Member, Task } from "@/models/gantt";
 
 export type GanttResponse = {
+  projectName: string;
+  projectStartDate: string;
+  projectEndDate: string;
+  excludeNonWorkingDays: boolean;
+  members: Member[];
+  tasks: Task[];
+  dependencies: Dependency[];
+  holidays: Holiday[];
+};
+
+export type SaveGanttPayload = {
+  projectName: string;
+  projectStartDate: string;
+  projectEndDate: string;
+  excludeNonWorkingDays: boolean;
+  members: Member[];
   tasks: Task[];
   dependencies: Dependency[];
   holidays: Holiday[];
@@ -14,7 +30,30 @@ function normalizeTasks(tasks: Task[]): Task[] {
   }));
 }
 
+function normalizeResponse(data: GanttResponse): GanttResponse {
+  return {
+    ...data,
+    projectName: data.projectName || "チーム進行ガントチャート",
+    excludeNonWorkingDays: Boolean(data.excludeNonWorkingDays),
+    members: data.members ?? [],
+    tasks: normalizeTasks(data.tasks ?? []),
+    dependencies: data.dependencies ?? [],
+    holidays: data.holidays ?? [],
+  };
+}
+
 const fallbackData: GanttResponse = {
+  projectName: "チーム進行ガントチャート",
+  projectStartDate: "2026-05-01",
+  projectEndDate: "2026-05-20",
+  excludeNonWorkingDays: false,
+  members: [
+    { id: 1, name: "Mina" },
+    { id: 2, name: "Ren" },
+    { id: 3, name: "Kai" },
+    { id: 4, name: "Aoi" },
+    { id: 5, name: "Sora" },
+  ],
   tasks: [
     {
       id: 1,
@@ -95,11 +134,25 @@ export async function fetchTasks(): Promise<GanttResponse> {
     }
 
     const data = (await response.json()) as GanttResponse;
-    return {
-      ...data,
-      tasks: normalizeTasks(data.tasks),
-    };
+    return normalizeResponse(data);
   } catch {
-    return fallbackData;
+    return normalizeResponse(fallbackData);
   }
+}
+
+export async function saveTasks(payload: SaveGanttPayload): Promise<GanttResponse> {
+  const response = await fetch("/api/tasks", {
+    method: "PUT",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify(payload),
+  });
+
+  if (!response.ok) {
+    throw new Error(`API request failed: ${response.status}`);
+  }
+
+  const data = (await response.json()) as GanttResponse;
+  return normalizeResponse(data);
 }

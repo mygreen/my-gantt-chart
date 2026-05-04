@@ -11,7 +11,9 @@ public record TaskDto(
         LocalDate startDate,
         LocalDate endDate,
         int progress,
-        String status
+        String status,
+        Long parentTaskId,
+        String type
 ) {
     public static TaskDto fromEntity(com.example.gantt.entity.TaskEntity entity) {
         return new TaskDto(
@@ -21,7 +23,9 @@ public record TaskDto(
                 entity.getStartDate(),
                 entity.getEndDate(),
                 entity.getProgress(),
-                entity.getStatus().name().toLowerCase()
+                entity.getStatus().name().toLowerCase(),
+                entity.getParentTaskId(),
+                entity.getTaskType().name().toLowerCase()
         );
     }
 }
