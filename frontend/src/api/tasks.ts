@@ -10,6 +10,7 @@ function normalizeTasks(tasks: Task[]): Task[] {
   return tasks.map((task) => ({
     ...task,
     parentTaskId: task.parentTaskId ?? null,
+    type: task.type ?? "task",
   }));
 }
 
@@ -24,6 +25,7 @@ const fallbackData: GanttResponse = {
       progress: 100,
       status: "done",
       parentTaskId: null,
+      type: "task",
     },
     {
       id: 2,
@@ -34,6 +36,7 @@ const fallbackData: GanttResponse = {
       progress: 72,
       status: "in_progress",
       parentTaskId: 1,
+      type: "task",
     },
     {
       id: 3,
@@ -44,6 +47,7 @@ const fallbackData: GanttResponse = {
       progress: 36,
       status: "in_progress",
       parentTaskId: 1,
+      type: "task",
     },
     {
       id: 4,
@@ -54,6 +58,7 @@ const fallbackData: GanttResponse = {
       progress: 48,
       status: "in_progress",
       parentTaskId: null,
+      type: "task",
     },
     {
       id: 5,
@@ -64,6 +69,7 @@ const fallbackData: GanttResponse = {
       progress: 0,
       status: "todo",
       parentTaskId: null,
+      type: "task",
     },
   ],
   dependencies: [

@@ -1,5 +1,7 @@
 export type TaskStatus = "todo" | "in_progress" | "done" | "blocked";
 
+export type TaskType = "task" | "milestone";
+
 export type Task = {
   id: number;
   name: string;
@@ -9,6 +11,7 @@ export type Task = {
   progress: number;
   status: TaskStatus;
   parentTaskId: number | null;
+  type: TaskType;
 };
 
 export type Dependency = {
@@ -20,6 +23,11 @@ export type Dependency = {
 export type Holiday = {
   id: number;
   date: string;
+  name: string;
+};
+
+export type Member = {
+  id: number;
   name: string;
 };
 

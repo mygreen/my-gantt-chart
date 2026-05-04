@@ -1,3 +1,4 @@
+import { parseISO } from "date-fns";
 import { getDateOffsetInTimeline, getTaskProgressRatio } from "@/core/scheduling/timeline";
 import type { Holiday, InazumaPoint, TaskLayout, TimelineCell, VisibleTask } from "@/models/gantt";
 
@@ -11,6 +12,7 @@ type InazumaLayerProps = {
   excludeNonWorkingDays: boolean;
   width: number;
   height: number;
+  topOffset?: number;
 };
 
 function buildPointString(points: InazumaPoint[]) {
@@ -21,18 +23,23 @@ function buildInazumaPoints(
   tasks: VisibleTask[],
   layouts: TaskLayout[],
   baselineX: number,
+  baselineDate: string,
   holidays: Holiday[],
   excludeNonWorkingDays: boolean,
 ) {
+  const baseline = parseISO(baselineDate);
+
   return layouts
     .map((layout, index) => {
       const task = tasks[index];
-      if (!task) {
+      if (!task || task.type === "milestone") {
         return null;
       }
 
       const progressRatio = getTaskProgressRatio(task, holidays, excludeNonWorkingDays);
-      const x = layout.x + layout.width * progressRatio;
+      const isCompletedBeforeBaseline =
+        task.status === "done" && parseISO(task.endDate).getTime() <= baseline.getTime();
+      const x = isCompletedBeforeBaseline ? baselineX : layout.x + layout.width * progressRatio;
       const y = layout.y + layout.height / 2;
 
       return {
@@ -55,16 +62,20 @@ export function InazumaLayer({
   excludeNonWorkingDays,
   width,
   height,
+  topOffset = 0,
 }: InazumaLayerProps) {
   const baselineX = getDateOffsetInTimeline(baselineDate, timelineCells, cellWidth);
   if (baselineX === null) {
     return null;
   }
 
+  const clipPathId = "inazuma-content-clip";
+
   const points = buildInazumaPoints(
     tasks,
     layouts,
     baselineX,
+    baselineDate,
     holidays,
     excludeNonWorkingDays,
   );
@@ -77,49 +88,43 @@ export function InazumaLayer({
 
   return (
     <svg className="pointer-events-none absolute inset-0 z-20" width={width} height={height}>
-      <line
-        x1={baselineX}
-        x2={baselineX}
-        y1={0}
-        y2={height}
-        stroke="#ef4444"
-        strokeWidth="2"
-        strokeDasharray="5 4"
-        opacity="0.9"
-      />
-      <polyline
-        points={buildPointString(points)}
-        fill="none"
-        stroke="#ef4444"
-        strokeWidth="2.5"
-        strokeLinejoin="round"
-        strokeLinecap="round"
-      />
-      {points.map((point) => (
-        <circle
-          key={point.taskId}
-          cx={point.x}
-          cy={point.y}
-          r="3.5"
-          fill={point.isDelayed ? "#ef4444" : "#f97316"}
-          stroke="#ffffff"
-          strokeWidth="1.5"
+      <defs>
+        <clipPath id={clipPathId}>
+          <rect x="0" y={topOffset} width={width} height={Math.max(height - topOffset, 0)} />
+        </clipPath>
+      </defs>
+      <g clipPath={`url(#${clipPathId})`}>
+        <line
+          x1={baselineX}
+          x2={baselineX}
+          y1={topOffset}
+          y2={height}
+          stroke="#ef4444"
+          strokeWidth="2"
+          strokeDasharray="5 4"
+          opacity="0.9"
         />
-      ))}
-      <g transform={`translate(${Math.min(Math.max(baselineX - 58, 8), width - 116)}, 8)`}>
-        <rect width="116" height="24" rx="12" fill="#ffffff" stroke="#fecaca" />
-        <text
-          x="58"
-          y="16"
-          textAnchor="middle"
-          fontSize="11"
-          fontWeight="600"
-          fill="#dc2626"
-        >
-          {`基準日 ${baselineDate}`}
-        </text>
+        <polyline
+          points={buildPointString(points)}
+          fill="none"
+          stroke="#ef4444"
+          strokeWidth="2.5"
+          strokeLinejoin="round"
+          strokeLinecap="round"
+        />
+        {points.map((point) => (
+          <circle
+            key={point.taskId}
+            cx={point.x}
+            cy={point.y}
+            r="3.5"
+            fill={point.isDelayed ? "#ef4444" : "#f97316"}
+            stroke="#ffffff"
+            strokeWidth="1.5"
+          />
+        ))}
       </g>
-      <g transform={`translate(${Math.max(width - 150, 8)}, 8)`}>
+      <g transform={`translate(${Math.max(width - 150, 8)}, ${topOffset + 8})`}>
         <rect width="142" height="24" rx="12" fill="#ffffff" stroke="#fecaca" />
         <text
           x="71"
