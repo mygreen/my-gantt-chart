@@ -28,13 +28,17 @@ public class ProjectVersionEntity {
     @Column(name = "snapshot_json", nullable = false)
     private String snapshotJson;
 
+    @Column(name = "note")
+    private String note;
+
     protected ProjectVersionEntity() {
     }
 
-    public ProjectVersionEntity(int version, LocalDateTime savedAt, String snapshotJson) {
+    public ProjectVersionEntity(int version, LocalDateTime savedAt, String snapshotJson, String note) {
         this.version = version;
         this.savedAt = savedAt;
         this.snapshotJson = snapshotJson;
+        this.note = note;
     }
 
     public Long getId() {
@@ -51,5 +55,9 @@ public class ProjectVersionEntity {
 
     public String getSnapshotJson() {
         return snapshotJson;
+    }
+
+    public String getNote() {
+        return note;
     }
 }

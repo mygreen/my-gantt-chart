@@ -34,6 +34,7 @@ export type Member = {
 export type ProjectVersionSummary = {
   version: number;
   savedAt: string;
+  note: string | null;
 };
 
 export type Viewport = {

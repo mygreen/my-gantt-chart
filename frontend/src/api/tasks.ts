@@ -168,7 +168,11 @@ export async function fetchProjectVersions(): Promise<ProjectVersionSummary[]> {
     throw new Error(`API request failed: ${response.status}`);
   }
 
-  return (await response.json()) as ProjectVersionSummary[];
+  const data = (await response.json()) as ProjectVersionSummary[];
+  return data.map((item) => ({
+    ...item,
+    note: item.note ?? null,
+  }));
 }
 
 export async function restoreProjectVersion(version: number): Promise<GanttResponse> {

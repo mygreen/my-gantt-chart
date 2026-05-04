@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+﻿import { useEffect, useMemo, useRef, useState } from "react";
 import type { ChangeEvent } from "react";
 import {
   AlertCircle,
@@ -974,16 +974,17 @@ export function App() {
                 </div>
 
                 <div className="mt-4 overflow-hidden rounded-md border border-slate-200">
-                  <div className="grid grid-cols-[120px_180px_96px] border-b border-slate-200 bg-slate-50 px-3 py-2 text-[11px] font-semibold text-slate-600">
+                  <div className="grid grid-cols-[120px_180px_minmax(0,1fr)_96px] border-b border-slate-200 bg-slate-50 px-3 py-2 text-[11px] font-semibold text-slate-600">
                     <span>バージョン</span>
                     <span>保存日時</span>
+                    <span>備考</span>
                     <span className="text-right">操作</span>
                   </div>
                   <div className="divide-y divide-slate-200">
                     {versionHistory.map((item) => (
                       <div
                         key={item.version}
-                        className="grid grid-cols-[120px_180px_96px] items-center gap-3 px-3 py-2"
+                        className="grid grid-cols-[120px_180px_minmax(0,1fr)_96px] items-center gap-3 px-3 py-2"
                       >
                         <span className="text-sm font-medium text-slate-800">{`v${item.version}`}</span>
                         <span className="text-sm text-slate-600">
@@ -994,6 +995,9 @@ export function App() {
                             hour: "2-digit",
                             minute: "2-digit",
                           })}
+                        </span>
+                        <span className="text-sm text-slate-600">
+                          {item.note && item.note.trim().length > 0 ? item.note : "-"}
                         </span>
                         <div className="flex justify-end">
                           <button
@@ -1089,3 +1093,4 @@ export function App() {
     </main>
   );
 }
+

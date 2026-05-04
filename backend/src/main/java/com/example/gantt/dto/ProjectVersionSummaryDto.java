@@ -6,9 +6,10 @@ import java.time.LocalDateTime;
 
 public record ProjectVersionSummaryDto(
         int version,
-        LocalDateTime savedAt
+        LocalDateTime savedAt,
+        String note
 ) {
     public static ProjectVersionSummaryDto fromEntity(ProjectVersionEntity entity) {
-        return new ProjectVersionSummaryDto(entity.getVersion(), entity.getSavedAt());
+        return new ProjectVersionSummaryDto(entity.getVersion(), entity.getSavedAt(), entity.getNote());
     }
 }

@@ -113,6 +113,10 @@ public class TaskService {
     }
 
     public GanttResponseDto saveGanttBoard(SaveGanttRequest request) {
+        return saveGanttBoard(request, null);
+    }
+
+    private GanttResponseDto saveGanttBoard(SaveGanttRequest request, String versionNote) {
         saveProjectSettings(request);
 
         Map<Long, TaskEntity> existingTasks = taskRepository.findAll().stream()
@@ -224,7 +228,7 @@ public class TaskService {
         memberRepository.saveAll(memberEntities);
 
         GanttResponseDto response = getGanttBoard();
-        saveProjectVersionSnapshot(response, request);
+        saveProjectVersionSnapshot(response, request, versionNote);
         return response;
     }
 
@@ -243,7 +247,7 @@ public class TaskService {
                     projectVersion.getSnapshotJson(),
                     SaveGanttRequest.class
             );
-            return saveGanttBoard(snapshot);
+            return saveGanttBoard(snapshot, "v" + version + "から復元しました。");
         } catch (JsonProcessingException exception) {
             throw new ResponseStatusException(
                     HttpStatus.INTERNAL_SERVER_ERROR,
@@ -335,7 +339,11 @@ public class TaskService {
                 .toList();
     }
 
-    private void saveProjectVersionSnapshot(GanttResponseDto response, SaveGanttRequest request) {
+    private void saveProjectVersionSnapshot(
+            GanttResponseDto response,
+            SaveGanttRequest request,
+            String versionNote
+    ) {
         SaveGanttRequest snapshot = new SaveGanttRequest(
                 response.projectName(),
                 response.version(),
@@ -350,13 +358,14 @@ public class TaskService {
 
         try {
             String snapshotJson = objectMapper.writeValueAsString(snapshot);
-            projectVersionRepository.save(
+                projectVersionRepository.save(
                     new ProjectVersionEntity(
                             response.version(),
                             LocalDateTime.now(),
-                            snapshotJson
+                            snapshotJson,
+                            versionNote
                     )
-            );
+                );
         } catch (JsonProcessingException exception) {
             throw new ResponseStatusException(
                     HttpStatus.INTERNAL_SERVER_ERROR,
