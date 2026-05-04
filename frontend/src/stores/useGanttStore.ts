@@ -19,19 +19,28 @@ import type {
   Dependency,
   Holiday,
   InteractionMode,
+  Member,
   Task,
+  TaskType,
   TimelineScale,
   Viewport,
 } from "@/models/gantt";
 
-type AddTaskMode = "child" | "tail";
+type AddTaskMode = "child" | "sibling" | "tail";
 
 type GanttState = {
+  projectName: string;
+  projectStartDate: string;
+  projectEndDate: string;
+  members: Member[];
   tasks: Task[];
   dependencies: Dependency[];
   holidays: Holiday[];
   viewport: Viewport;
   showOwnerInSidebar: boolean;
+  showStartDateInSidebar: boolean;
+  showEndDateInSidebar: boolean;
+  showAllParentTaskOptions: boolean;
   excludeNonWorkingDays: boolean;
   timelineScale: TimelineScale;
   baselineDate: string;
@@ -41,6 +50,8 @@ type GanttState = {
   collapsedTaskIds: number[];
   status: "idle" | "loading" | "ready" | "error";
   error: string | null;
+  setProjectName: (name: string) => void;
+  setProjectSchedule: (startDate: string, endDate: string) => void;
   loadTasks: () => Promise<void>;
   moveTaskByDays: (taskId: number, dayOffset: number) => void;
   resizeTaskByDays: (taskId: number, dayOffset: number) => void;
@@ -53,6 +64,9 @@ type GanttState = {
     placement: TaskDropPlacement,
   ) => void;
   toggleSidebarOwnerVisibility: () => void;
+  toggleSidebarStartDateVisibility: () => void;
+  toggleSidebarEndDateVisibility: () => void;
+  toggleAllParentTaskOptionsVisibility: () => void;
   toggleNonWorkingDayExclusion: () => void;
   setTimelineScale: (scale: TimelineScale) => void;
   setBaselineDate: (date: string) => void;
@@ -62,13 +76,23 @@ type GanttState = {
     taskId: number,
     updates: Pick<Task, "name" | "owner" | "progress" | "status">,
   ) => void;
+  updateTaskSchedule: (taskId: number, startDate: string, endDate: string) => void;
   setTaskParent: (taskId: number, parentTaskId: number | null) => void;
   toggleTaskCollapse: (taskId: number) => void;
-  addTask: (mode: AddTaskMode) => void;
+  addTask: (mode: AddTaskMode, type?: TaskType) => void;
   deleteTask: (taskId: number) => void;
   toggleTaskDone: (taskId: number) => void;
   selectDependencyTask: (taskId: number) => void;
   removeDependency: (dependencyId: number) => void;
+  addHoliday: () => void;
+  updateHoliday: (holidayId: number, updates: Pick<Holiday, "date" | "name">) => void;
+  deleteHoliday: (holidayId: number) => void;
+  importHolidays: (holidays: Array<Pick<Holiday, "date" | "name">>) => void;
+  addMember: () => void;
+  updateMember: (memberId: number, name: string) => void;
+  deleteMember: (memberId: number) => void;
+  moveMemberUp: (memberId: number) => void;
+  moveMemberDown: (memberId: number) => void;
 };
 
 function withSubtreeTaskIds(taskId: number, tasks: Task[]) {
@@ -79,12 +103,99 @@ function applyTaskUpdates(tasks: Task[], holidays: Holiday[], excludeNonWorkingD
   return syncParentTaskProgress(tasks, holidays, excludeNonWorkingDays);
 }
 
+function deriveMembers(tasks: Task[]) {
+  const names = Array.from(
+    new Set(tasks.map((task) => task.owner.trim()).filter((owner) => owner.length > 0)),
+  );
+
+  return names.map((name, index) => ({
+    id: index + 1,
+    name,
+  }));
+}
+
+function reorderMembersByStep(members: Member[], memberId: number, direction: -1 | 1) {
+  const index = members.findIndex((member) => member.id === memberId);
+  const targetIndex = index + direction;
+  if (index < 0 || targetIndex < 0 || targetIndex >= members.length) {
+    return members;
+  }
+
+  const next = [...members];
+  const [member] = next.splice(index, 1);
+  next.splice(targetIndex, 0, member);
+  return next;
+}
+
+function normalizeTaskDates(startDate: string, endDate: string, type: TaskType) {
+  if (type === "milestone") {
+    return {
+      startDate,
+      endDate: startDate,
+    };
+  }
+
+  if (endDate < startDate) {
+    return {
+      startDate,
+      endDate: startDate,
+    };
+  }
+
+  return {
+    startDate,
+    endDate,
+  };
+}
+
+function insertTaskByMode(
+  tasks: Task[],
+  newTask: Task,
+  mode: AddTaskMode,
+  selectedTaskId: number | null,
+) {
+  if (mode === "tail" || selectedTaskId === null) {
+    return [...tasks, newTask];
+  }
+
+  const selectedTask = tasks.find((task) => task.id === selectedTaskId);
+  if (!selectedTask) {
+    return [...tasks, newTask];
+  }
+
+  if (mode === "child") {
+    const childIds = new Set(getDescendantIds(selectedTask.id, tasks));
+    let insertIndex = tasks.findIndex((task) => task.id === selectedTask.id) + 1;
+
+    while (insertIndex < tasks.length && childIds.has(tasks[insertIndex].id)) {
+      insertIndex += 1;
+    }
+
+    return [...tasks.slice(0, insertIndex), newTask, ...tasks.slice(insertIndex)];
+  }
+
+  const subtreeIds = withSubtreeTaskIds(selectedTask.id, tasks);
+  let insertIndex = tasks.findIndex((task) => task.id === selectedTask.id) + 1;
+  while (insertIndex < tasks.length && subtreeIds.has(tasks[insertIndex].id)) {
+    insertIndex += 1;
+  }
+
+  return [...tasks.slice(0, insertIndex), newTask, ...tasks.slice(insertIndex)];
+}
+
 export const useGanttStore = create<GanttState>((set, get) => ({
+  projectName: "チーム進行ガントチャート",
+  projectStartDate: new Date().toISOString().slice(0, 10),
+  projectEndDate: new Date().toISOString().slice(0, 10),
+  members: [],
   tasks: [],
   dependencies: [],
   holidays: [],
   viewport: defaultViewport,
   showOwnerInSidebar: true,
+  showStartDateInSidebar: false,
+  showEndDateInSidebar: false,
+  showAllParentTaskOptions: false,
   excludeNonWorkingDays: false,
   timelineScale: "day",
   baselineDate: new Date().toISOString().slice(0, 10),
@@ -95,9 +206,38 @@ export const useGanttStore = create<GanttState>((set, get) => ({
   status: "idle",
   error: null,
 
+  setProjectName: (projectName) => {
+    set({ projectName });
+  },
+
+  setProjectSchedule: (projectStartDate, projectEndDate) => {
+    set({
+      projectStartDate,
+      projectEndDate: projectEndDate < projectStartDate ? projectStartDate : projectEndDate,
+    });
+  },
+
   toggleSidebarOwnerVisibility: () => {
     set((state) => ({
       showOwnerInSidebar: !state.showOwnerInSidebar,
+    }));
+  },
+
+  toggleSidebarStartDateVisibility: () => {
+    set((state) => ({
+      showStartDateInSidebar: !state.showStartDateInSidebar,
+    }));
+  },
+
+  toggleSidebarEndDateVisibility: () => {
+    set((state) => ({
+      showEndDateInSidebar: !state.showEndDateInSidebar,
+    }));
+  },
+
+  toggleAllParentTaskOptionsVisibility: () => {
+    set((state) => ({
+      showAllParentTaskOptions: !state.showAllParentTaskOptions,
     }));
   },
 
@@ -162,6 +302,26 @@ export const useGanttStore = create<GanttState>((set, get) => ({
     }));
   },
 
+  updateTaskSchedule: (taskId, startDate, endDate) => {
+    set((state) => ({
+      tasks: applyTaskUpdates(
+        state.tasks.map((task) => {
+          if (task.id !== taskId) {
+            return task;
+          }
+
+          const normalizedDates = normalizeTaskDates(startDate, endDate, task.type);
+          return {
+            ...task,
+            ...normalizedDates,
+          };
+        }),
+        state.holidays,
+        state.excludeNonWorkingDays,
+      ),
+    }));
+  },
+
   setTaskParent: (taskId, parentTaskId) => {
     set((state) => ({
       tasks: applyTaskUpdates(
@@ -197,34 +357,36 @@ export const useGanttStore = create<GanttState>((set, get) => ({
     });
   },
 
-  addTask: (mode) => {
+  addTask: (mode, type = "task") => {
     set((state) => {
       const nextId = state.tasks.reduce((maxId, task) => Math.max(maxId, task.id), 0) + 1;
       const selectedTask = state.tasks.find((task) => task.id === state.selectedTaskId) ?? null;
       const tailTask = state.tasks[state.tasks.length - 1] ?? null;
-      const parentTask = mode === "child" ? selectedTask : null;
+      const parentTaskId =
+        mode === "child"
+          ? (selectedTask?.id ?? null)
+          : mode === "sibling"
+            ? (selectedTask?.parentTaskId ?? null)
+            : null;
       const baseDate =
-        parentTask?.endDate ??
-        tailTask?.endDate ??
-        new Date().toISOString().slice(0, 10);
+        selectedTask?.endDate ?? tailTask?.endDate ?? new Date().toISOString().slice(0, 10);
 
       const newTask: Task = {
         id: nextId,
-        name: `新規タスク ${nextId}`,
+        name: type === "milestone" ? `マイルストーン ${nextId}` : `新規タスク ${nextId}`,
         owner: "未設定",
         startDate: baseDate,
         endDate: baseDate,
-        progress: 0,
+        progress: type === "milestone" ? 0 : 0,
         status: "todo",
-        parentTaskId: parentTask?.id ?? null,
+        parentTaskId,
+        type,
       };
 
+      const nextTasks = insertTaskByMode(state.tasks, newTask, mode, state.selectedTaskId);
+
       return {
-        tasks: applyTaskUpdates(
-          [...state.tasks, newTask],
-          state.holidays,
-          state.excludeNonWorkingDays,
-        ),
+        tasks: applyTaskUpdates(nextTasks, state.holidays, state.excludeNonWorkingDays),
         selectedTaskId: newTask.id,
       };
     });
@@ -310,6 +472,13 @@ export const useGanttStore = create<GanttState>((set, get) => ({
         return state;
       }
 
+      const task = state.tasks.find((candidate) => candidate.id === taskId);
+      if (!task || task.type === "milestone") {
+        return {
+          pendingDependencyFromTaskId: null,
+        };
+      }
+
       if (state.pendingDependencyFromTaskId === null) {
         return {
           pendingDependencyFromTaskId: taskId,
@@ -357,6 +526,110 @@ export const useGanttStore = create<GanttState>((set, get) => ({
     }));
   },
 
+  addHoliday: () => {
+    set((state) => {
+      const nextId = state.holidays.reduce((maxId, holiday) => Math.max(maxId, holiday.id), 0) + 1;
+      return {
+        holidays: [
+          ...state.holidays,
+          {
+            id: nextId,
+            date: state.projectStartDate,
+            name: "新しい祝日",
+          },
+        ],
+      };
+    });
+  },
+
+  updateHoliday: (holidayId, updates) => {
+    set((state) => ({
+      holidays: state.holidays.map((holiday) =>
+        holiday.id === holidayId ? { ...holiday, ...updates } : holiday,
+      ),
+    }));
+  },
+
+  deleteHoliday: (holidayId) => {
+    set((state) => ({
+      holidays: state.holidays.filter((holiday) => holiday.id !== holidayId),
+    }));
+  },
+
+  importHolidays: (holidays) => {
+    set((state) => {
+      let nextId = state.holidays.reduce((maxId, holiday) => Math.max(maxId, holiday.id), 0) + 1;
+      const existingByDate = new Map(state.holidays.map((holiday) => [holiday.date, holiday]));
+      const importedByDate = new Map(
+        holidays
+          .filter((holiday) => holiday.date && holiday.name)
+          .map((holiday) => [holiday.date, holiday]),
+      );
+
+      const nextHolidays = state.holidays.map((holiday) => {
+        const imported = importedByDate.get(holiday.date);
+        if (!imported) {
+          return holiday;
+        }
+
+        importedByDate.delete(holiday.date);
+        return {
+          ...holiday,
+          name: imported.name,
+        };
+      });
+
+      importedByDate.forEach((holiday) => {
+        if (existingByDate.has(holiday.date)) {
+          return;
+        }
+
+        nextHolidays.push({
+          id: nextId++,
+          date: holiday.date,
+          name: holiday.name,
+        });
+      });
+
+      return {
+        holidays: nextHolidays,
+      };
+    });
+  },
+
+  addMember: () => {
+    set((state) => {
+      const nextId = state.members.reduce((maxId, member) => Math.max(maxId, member.id), 0) + 1;
+      return {
+        members: [...state.members, { id: nextId, name: `メンバー ${nextId}` }],
+      };
+    });
+  },
+
+  updateMember: (memberId, name) => {
+    set((state) => ({
+      members: state.members.map((member) => (member.id === memberId ? { ...member, name } : member)),
+    }));
+  },
+
+  deleteMember: (memberId) => {
+    set((state) => ({
+      members: state.members.filter((member) => member.id !== memberId),
+    }));
+  },
+
+  moveMemberUp: (memberId) => {
+    set((state) => ({
+      members: reorderMembersByStep(state.members, memberId, -1),
+    }));
+  },
+
+  moveMemberDown: (memberId) => {
+    set((state) => ({
+      members: reorderMembersByStep(state.members, memberId, 1),
+    }));
+  },
+
   moveTaskByDays: (taskId, dayOffset) => {
     if (dayOffset === 0) {
       return;
@@ -383,7 +656,11 @@ export const useGanttStore = create<GanttState>((set, get) => ({
 
     set((state) => ({
       tasks: applyTaskUpdates(
-        state.tasks.map((task) => (task.id === taskId ? resizeTaskByDays(task, dayOffset) : task)),
+        state.tasks.map((task) =>
+          task.id === taskId && task.type !== "milestone"
+            ? resizeTaskByDays(task, dayOffset)
+            : task,
+        ),
         state.holidays,
         state.excludeNonWorkingDays,
       ),
@@ -398,7 +675,9 @@ export const useGanttStore = create<GanttState>((set, get) => ({
     set((state) => ({
       tasks: applyTaskUpdates(
         state.tasks.map((task) =>
-          task.id === taskId ? resizeTaskStartByDays(task, dayOffset) : task,
+          task.id === taskId && task.type !== "milestone"
+            ? resizeTaskStartByDays(task, dayOffset)
+            : task,
         ),
         state.holidays,
         state.excludeNonWorkingDays,
@@ -412,11 +691,17 @@ export const useGanttStore = create<GanttState>((set, get) => ({
     try {
       const data = await fetchTasks();
       const { excludeNonWorkingDays } = get();
+      const taskDates = data.tasks.flatMap((task) => [task.startDate, task.endDate]).sort();
+      const projectStartDate = taskDates[0] ?? new Date().toISOString().slice(0, 10);
+      const projectEndDate = taskDates[taskDates.length - 1] ?? projectStartDate;
 
       set({
         tasks: applyTaskUpdates(data.tasks, data.holidays, excludeNonWorkingDays),
         dependencies: data.dependencies,
         holidays: data.holidays,
+        projectStartDate,
+        projectEndDate,
+        members: deriveMembers(data.tasks),
         pendingDependencyFromTaskId: null,
         selectedTaskId: data.tasks[0]?.id ?? null,
         collapsedTaskIds: [],

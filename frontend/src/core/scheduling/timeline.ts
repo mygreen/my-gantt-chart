@@ -34,12 +34,18 @@ function inclusiveDaySpan(start: Date, end: Date) {
   return differenceInCalendarDays(end, start) + 1;
 }
 
-export function getTimelineBounds(tasks: Task[]) {
+export function getTimelineBounds(
+  tasks: Task[],
+  projectStartDate?: string | null,
+  projectEndDate?: string | null,
+) {
   if (tasks.length === 0) {
     const today = startOfDay(new Date());
+    const start = projectStartDate ? parseISO(projectStartDate) : today;
+    const end = projectEndDate ? parseISO(projectEndDate) : addDays(today, 14);
     return {
-      start: today,
-      end: addDays(today, 14),
+      start: startOfDay(start),
+      end: endOfDay(end),
     };
   }
 
@@ -50,9 +56,12 @@ export function getTimelineBounds(tasks: Task[]) {
     .map((task) => parseISO(task.endDate))
     .reduce((max, current) => (current > max ? current : max));
 
+  const explicitStart = projectStartDate ? parseISO(projectStartDate) : null;
+  const explicitEnd = projectEndDate ? parseISO(projectEndDate) : null;
+
   return {
-    start: startOfDay(addDays(start, -1)),
-    end: endOfDay(addDays(end, 2)),
+    start: startOfDay(addDays(explicitStart && explicitStart < start ? explicitStart : start, -1)),
+    end: endOfDay(addDays(explicitEnd && explicitEnd > end ? explicitEnd : end, 2)),
   };
 }
 
@@ -61,8 +70,10 @@ export function buildTimelineCells(
   holidays: Holiday[],
   scale: TimelineScale,
   referenceDates: string[] = [],
+  projectStartDate?: string | null,
+  projectEndDate?: string | null,
 ): TimelineCell[] {
-  const bounds = getTimelineBounds(tasks);
+  const bounds = getTimelineBounds(tasks, projectStartDate, projectEndDate);
   const parsedReferenceDates = referenceDates.map((date) => parseISO(date));
   const start =
     parsedReferenceDates.length > 0

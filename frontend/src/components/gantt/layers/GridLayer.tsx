@@ -1,19 +1,19 @@
-import type { Task, TimelineCell, TimelineScale } from "@/models/gantt";
+import type { TimelineCell, TimelineScale } from "@/models/gantt";
 import { cn } from "@/utils/cn";
 
 type GridLayerProps = {
   timelineCells: TimelineCell[];
-  tasks: Task[];
   cellWidth: number;
   rowHeight: number;
+  rowCount: number;
   scale: TimelineScale;
 };
 
 export function GridLayer({
   timelineCells,
-  tasks,
   cellWidth,
   rowHeight,
+  rowCount,
   scale,
 }: GridLayerProps) {
   return (
@@ -31,12 +31,12 @@ export function GridLayer({
           }}
         />
       ))}
-      {tasks.map((task, taskIndex) => (
+      {Array.from({ length: rowCount }).map((_, rowIndex) => (
         <div
-          key={task.id}
+          key={`row-${rowIndex}`}
           className="absolute inset-x-0 border-b border-slate-200"
           style={{
-            top: taskIndex * rowHeight,
+            top: rowIndex * rowHeight,
             height: rowHeight,
           }}
         />

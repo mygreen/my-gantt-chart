@@ -14,6 +14,8 @@ type SidebarLayerProps = {
   status: "idle" | "loading" | "ready" | "error";
   selectedTaskId: number | null;
   showOwnerColumn: boolean;
+  showStartDateColumn: boolean;
+  showEndDateColumn: boolean;
   onTaskContextMenu: (taskId: number, event: MouseEvent<HTMLDivElement>) => void;
 };
 
@@ -22,6 +24,29 @@ type DropIndicator = {
   placement: TaskDropPlacement;
 };
 
+function buildSidebarColumns(
+  showOwnerColumn: boolean,
+  showStartDateColumn: boolean,
+  showEndDateColumn: boolean,
+) {
+  const columns = ["32px", "minmax(0,2.2fr)"];
+  if (showOwnerColumn) {
+    columns.push("minmax(72px,0.9fr)");
+  }
+  if (showStartDateColumn) {
+    columns.push("88px");
+  }
+  if (showEndDateColumn) {
+    columns.push("88px");
+  }
+  columns.push("56px", "12px");
+  return columns.join(" ");
+}
+
+function formatDateLabel(date: string) {
+  return date.replaceAll("-", "/");
+}
+
 export function SidebarLayer({
   tasks,
   taskNumbers,
@@ -29,6 +54,8 @@ export function SidebarLayer({
   status,
   selectedTaskId,
   showOwnerColumn,
+  showStartDateColumn,
+  showEndDateColumn,
   onTaskContextMenu,
 }: SidebarLayerProps) {
   const selectTask = useGanttStore((state) => state.selectTask);
@@ -40,11 +67,8 @@ export function SidebarLayer({
   const [dropIndicator, setDropIndicator] = useState<DropIndicator | null>(null);
 
   const gridTemplateColumns = useMemo(
-    () =>
-      showOwnerColumn
-        ? "32px minmax(0,2.6fr) minmax(56px,0.75fr) 56px 12px"
-        : "32px minmax(0,1fr) 56px 12px",
-    [showOwnerColumn],
+    () => buildSidebarColumns(showOwnerColumn, showStartDateColumn, showEndDateColumn),
+    [showEndDateColumn, showOwnerColumn, showStartDateColumn],
   );
 
   if (status === "loading" && tasks.length === 0) {
@@ -150,6 +174,12 @@ export function SidebarLayer({
             </div>
             {showOwnerColumn ? (
               <p className="truncate text-xs text-slate-500">{task.owner}</p>
+            ) : null}
+            {showStartDateColumn ? (
+              <p className="truncate text-xs text-slate-500">{formatDateLabel(task.startDate)}</p>
+            ) : null}
+            {showEndDateColumn ? (
+              <p className="truncate text-xs text-slate-500">{formatDateLabel(task.endDate)}</p>
             ) : null}
             <p className="text-right text-xs text-slate-500">
               {getTaskEffortInDays(task, holidays, excludeNonWorkingDays)}日
