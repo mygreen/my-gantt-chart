@@ -131,6 +131,7 @@ public class TaskService {
 
     public List<HolidayDto> saveSystemHolidays(List<SaveHolidayRequest> request) {
         holidayRepository.deleteAllByProjectId(SYSTEM_PROJECT_ID);
+        holidayRepository.flush();
 
         Map<LocalDate, SaveHolidayRequest> holidaysByDate = new LinkedHashMap<>();
         for (SaveHolidayRequest holiday : request) {
