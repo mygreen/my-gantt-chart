@@ -444,29 +444,45 @@ export function App() {
                     <div className="inline-flex rounded-md border border-slate-200 bg-white p-1">
                       <button
                         type="button"
-                        onClick={() => setInteractionMode("schedule")}
+                        onClick={() => void handleSave()}
+                        disabled={isSaving || !hasUnsavedChanges}
+                        title="保存"
+                        aria-label="保存"
                         className={cn(
-                          "inline-flex h-8 items-center gap-2 rounded px-3 text-sm transition",
-                          interactionMode === "schedule"
-                            ? "bg-cyan-50 text-cyan-700"
-                            : "text-slate-500 hover:text-slate-900",
+                          "inline-flex h-9 w-9 items-center justify-center rounded text-sm font-medium transition",
+                          isSaving || !hasUnsavedChanges
+                            ? "cursor-not-allowed text-slate-400"
+                            : "text-slate-700 hover:bg-cyan-50 hover:text-cyan-700",
                         )}
                       >
-                        <MoveHorizontal className="h-4 w-4" />
-                        スケジュール
+                        <Save className="h-4 w-4" />
                       </button>
                       <button
                         type="button"
-                        onClick={() => setInteractionMode("dependency")}
+                        onClick={handleDiscard}
+                        disabled={!hasUnsavedChanges}
+                        title="編集を破棄"
+                        aria-label="編集を破棄"
                         className={cn(
-                          "inline-flex h-8 items-center gap-2 rounded px-3 text-sm transition",
-                          interactionMode === "dependency"
-                            ? "bg-cyan-50 text-cyan-700"
-                            : "text-slate-500 hover:text-slate-900",
+                          "inline-flex h-9 w-9 items-center justify-center rounded text-sm font-medium transition",
+                          hasUnsavedChanges
+                            ? "text-slate-700 hover:bg-cyan-50 hover:text-cyan-700"
+                            : "cursor-not-allowed text-slate-400",
                         )}
                       >
-                        <GitBranch className="h-4 w-4" />
-                        関連線
+                        <RotateCcw className="h-4 w-4" />
+                      </button>
+                    </div>
+
+                    <div className="inline-flex rounded-md border border-slate-200 bg-white p-1">
+                      <button
+                        type="button"
+                        onClick={() => void handleReload()}
+                        title="再読み込み"
+                        aria-label="再読み込み"
+                        className="inline-flex h-9 w-9 items-center justify-center rounded text-sm font-medium text-slate-700 transition hover:bg-cyan-50 hover:text-cyan-700"
+                      >
+                        <RefreshCw className="h-4 w-4" />
                       </button>
                     </div>
 
@@ -488,16 +504,50 @@ export function App() {
                       ))}
                     </div>
 
-                    <label className="inline-flex h-9 items-center gap-2 rounded-md border border-slate-200 bg-white px-3 text-sm text-slate-700">
-                      <CalendarDays className="h-4 w-4 text-slate-500" />
-                      <span className="text-slate-500">基準日</span>
-                      <input
-                        type="date"
-                        value={baselineDate}
-                        onChange={(event) => setBaselineDate(event.target.value)}
-                        className="border-none bg-transparent text-sm text-slate-900 outline-none"
-                      />
-                    </label>
+                    <div className="inline-flex rounded-md border border-slate-200 bg-white p-1">
+                      <button
+                        type="button"
+                        onClick={toggleSidebarOwnerVisibility}
+                        title="担当者列の表示切替"
+                        aria-label="担当者列の表示切替"
+                        className={cn(
+                          "inline-flex h-9 w-9 items-center justify-center rounded text-sm font-medium transition",
+                          showOwnerInSidebar
+                            ? "bg-cyan-50 text-cyan-700"
+                            : "text-slate-700 hover:bg-cyan-50 hover:text-cyan-700",
+                        )}
+                      >
+                        <UserRound className="h-4 w-4" />
+                      </button>
+                      <button
+                        type="button"
+                        onClick={toggleSidebarStartDateVisibility}
+                        title="開始日列の表示切替"
+                        aria-label="開始日列の表示切替"
+                        className={cn(
+                          "inline-flex h-9 w-9 items-center justify-center rounded text-sm font-medium transition",
+                          showStartDateInSidebar
+                            ? "bg-cyan-50 text-cyan-700"
+                            : "text-slate-700 hover:bg-cyan-50 hover:text-cyan-700",
+                        )}
+                      >
+                        <CalendarDays className="h-4 w-4" />
+                      </button>
+                      <button
+                        type="button"
+                        onClick={toggleSidebarEndDateVisibility}
+                        title="終了日列の表示切替"
+                        aria-label="終了日列の表示切替"
+                        className={cn(
+                          "inline-flex h-9 w-9 items-center justify-center rounded text-sm font-medium transition",
+                          showEndDateInSidebar
+                            ? "bg-cyan-50 text-cyan-700"
+                            : "text-slate-700 hover:bg-cyan-50 hover:text-cyan-700",
+                        )}
+                      >
+                        <CalendarRange className="h-4 w-4" />
+                      </button>
+                    </div>
 
                     <div className="inline-flex rounded-md border border-slate-200 bg-white p-1">
                       <button
@@ -556,92 +606,44 @@ export function App() {
                     <div className="inline-flex rounded-md border border-slate-200 bg-white p-1">
                       <button
                         type="button"
-                        onClick={() => void handleSave()}
-                        disabled={isSaving || !hasUnsavedChanges}
-                        title="保存"
-                        aria-label="保存"
+                        onClick={() => setInteractionMode("schedule")}
                         className={cn(
-                          "inline-flex h-9 w-9 items-center justify-center rounded text-sm font-medium transition",
-                          isSaving || !hasUnsavedChanges
-                            ? "cursor-not-allowed text-slate-400"
-                            : "text-slate-700 hover:bg-cyan-50 hover:text-cyan-700",
+                          "inline-flex h-8 items-center gap-2 rounded px-3 text-sm transition",
+                          interactionMode === "schedule"
+                            ? "bg-cyan-50 text-cyan-700"
+                            : "text-slate-500 hover:text-slate-900",
                         )}
                       >
-                        <Save className="h-4 w-4" />
+                        <MoveHorizontal className="h-4 w-4" />
+                        スケジュール
                       </button>
                       <button
                         type="button"
-                        onClick={handleDiscard}
-                        disabled={!hasUnsavedChanges}
-                        title="編集を破棄"
-                        aria-label="編集を破棄"
+                        onClick={() => setInteractionMode("dependency")}
                         className={cn(
-                          "inline-flex h-9 w-9 items-center justify-center rounded text-sm font-medium transition",
-                          hasUnsavedChanges
-                            ? "text-slate-700 hover:bg-cyan-50 hover:text-cyan-700"
-                            : "cursor-not-allowed text-slate-400",
+                          "inline-flex h-8 items-center gap-2 rounded px-3 text-sm transition",
+                          interactionMode === "dependency"
+                            ? "bg-cyan-50 text-cyan-700"
+                            : "text-slate-500 hover:text-slate-900",
                         )}
                       >
-                        <RotateCcw className="h-4 w-4" />
+                        <GitBranch className="h-4 w-4" />
+                        関連線
                       </button>
                     </div>
 
-                    <div className="inline-flex rounded-md border border-slate-200 bg-white p-1">
-                      <button
-                        type="button"
-                        onClick={() => void handleReload()}
-                        title="再読み込み"
-                        aria-label="再読み込み"
-                        className="inline-flex h-9 w-9 items-center justify-center rounded text-sm font-medium text-slate-700 transition hover:bg-cyan-50 hover:text-cyan-700"
-                      >
-                        <RefreshCw className="h-4 w-4" />
-                      </button>
-                    </div>
+                    <label className="inline-flex h-9 items-center gap-2 rounded-md border border-slate-200 bg-white px-3 text-sm text-slate-700">
+                      <CalendarDays className="h-4 w-4 text-slate-500" />
+                      <span className="text-slate-500">基準日</span>
+                      <input
+                        type="date"
+                        value={baselineDate}
+                        onChange={(event) => setBaselineDate(event.target.value)}
+                        className="border-none bg-transparent text-sm text-slate-900 outline-none"
+                      />
+                    </label>
 
-                    <div className="inline-flex rounded-md border border-slate-200 bg-white p-1">
-                      <button
-                        type="button"
-                        onClick={toggleSidebarOwnerVisibility}
-                        title="担当者列の表示切替"
-                        aria-label="担当者列の表示切替"
-                        className={cn(
-                          "inline-flex h-9 w-9 items-center justify-center rounded text-sm font-medium transition",
-                          showOwnerInSidebar
-                            ? "bg-cyan-50 text-cyan-700"
-                            : "text-slate-700 hover:bg-cyan-50 hover:text-cyan-700",
-                        )}
-                      >
-                        <UserRound className="h-4 w-4" />
-                      </button>
-                      <button
-                        type="button"
-                        onClick={toggleSidebarStartDateVisibility}
-                        title="開始日列の表示切替"
-                        aria-label="開始日列の表示切替"
-                        className={cn(
-                          "inline-flex h-9 w-9 items-center justify-center rounded text-sm font-medium transition",
-                          showStartDateInSidebar
-                            ? "bg-cyan-50 text-cyan-700"
-                            : "text-slate-700 hover:bg-cyan-50 hover:text-cyan-700",
-                        )}
-                      >
-                        <CalendarDays className="h-4 w-4" />
-                      </button>
-                      <button
-                        type="button"
-                        onClick={toggleSidebarEndDateVisibility}
-                        title="終了日列の表示切替"
-                        aria-label="終了日列の表示切替"
-                        className={cn(
-                          "inline-flex h-9 w-9 items-center justify-center rounded text-sm font-medium transition",
-                          showEndDateInSidebar
-                            ? "bg-cyan-50 text-cyan-700"
-                            : "text-slate-700 hover:bg-cyan-50 hover:text-cyan-700",
-                        )}
-                      >
-                        <CalendarRange className="h-4 w-4" />
-                      </button>
-                    </div>
+                    
                   </div>
                 </div>
 
