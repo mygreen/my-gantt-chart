@@ -1,10 +1,15 @@
 {
-  "name": "gantt-chart-workspace",
+  "name": "my-gantt-chart-workspace",
   "image": "mcr.microsoft.com/devcontainers/javascript-node:1-22-bookworm",
   "runArgs": [
     "--add-host=host.docker.internal:host-gateway"
   ],
-  "workspaceFolder": "/workspaces/project-sample-gannt-chart",
+  "workspaceFolder": "/home/node/project/frontend",
+  "mounts" : [
+    "source=${localWorkspaceFolder}/,target=/home/node/project,type=bind,consistency=cached",
+    // node_modules(volumeeとしてマウント)
+		"source=my-gantt-chart-node_modules,target=${containerWorkspaceFolder}/node_modules,type=volume"
+  ],
   "customizations": {
     "vscode": {
       "settings": {
@@ -18,12 +23,13 @@
       ]
     }
   },
-//  "appPort": ["5173:5173"],
-//   "forwardPorts": [5173],
   "containerEnv": {
+    "CONTAINER_WORKSPACE_FOLDER": "${containerWorkspaceFolder}",
+
+    // WSL2上のDockerであれば、「npm run dev:host」で開発サーバを使用するときは、ホストマシンのIPアドレスを直接指定する必要があります。
     "VITE_API_BASE_URL": "http://host.docker.internal:8080"
   },
-  "postCreateCommand": "cd frontend && npm install",
-  "postStartCommand": "node -v && cd frontend && npm -v",
+  "onCreateCommand" : "/bin/bash ../.devcontainer/on_create.sh",
+  "postCreateCommand": "/bin/bash ../.devcontainer/post_create.sh",
   "remoteUser": "node"
 }
