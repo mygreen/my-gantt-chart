@@ -16,6 +16,7 @@ type SidebarLayerProps = {
   showOwnerColumn: boolean;
   showStartDateColumn: boolean;
   showEndDateColumn: boolean;
+  showProgressColumn: boolean;
   onTaskContextMenu: (taskId: number, event: MouseEvent<HTMLDivElement>) => void;
 };
 
@@ -28,6 +29,7 @@ function buildSidebarColumns(
   showOwnerColumn: boolean,
   showStartDateColumn: boolean,
   showEndDateColumn: boolean,
+  showProgressColumn: boolean,
 ) {
   const columns = ["32px", "minmax(0,2.2fr)"];
   if (showOwnerColumn) {
@@ -38,6 +40,9 @@ function buildSidebarColumns(
   }
   if (showEndDateColumn) {
     columns.push("88px");
+  }
+  if (showProgressColumn) {
+    columns.push("64px");
   }
   columns.push("56px", "12px");
   return columns.join(" ");
@@ -56,6 +61,7 @@ export function SidebarLayer({
   showOwnerColumn,
   showStartDateColumn,
   showEndDateColumn,
+  showProgressColumn,
   onTaskContextMenu,
 }: SidebarLayerProps) {
   const selectTask = useGanttStore((state) => state.selectTask);
@@ -67,8 +73,14 @@ export function SidebarLayer({
   const [dropIndicator, setDropIndicator] = useState<DropIndicator | null>(null);
 
   const gridTemplateColumns = useMemo(
-    () => buildSidebarColumns(showOwnerColumn, showStartDateColumn, showEndDateColumn),
-    [showEndDateColumn, showOwnerColumn, showStartDateColumn],
+    () =>
+      buildSidebarColumns(
+        showOwnerColumn,
+        showStartDateColumn,
+        showEndDateColumn,
+        showProgressColumn,
+      ),
+    [showEndDateColumn, showOwnerColumn, showProgressColumn, showStartDateColumn],
   );
 
   if (status === "loading" && tasks.length === 0) {
@@ -180,6 +192,9 @@ export function SidebarLayer({
             ) : null}
             {showEndDateColumn ? (
               <p className="truncate text-xs text-slate-500">{formatDateLabel(task.endDate)}</p>
+            ) : null}
+            {showProgressColumn ? (
+              <p className="text-right text-xs text-slate-500">{task.progress}%</p>
             ) : null}
             <p className="text-right text-xs text-slate-500">
               {getTaskEffortInDays(task, holidays, excludeNonWorkingDays)}日

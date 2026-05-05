@@ -180,6 +180,7 @@ export function App() {
   const showOwnerInSidebar = useGanttStore((state) => state.showOwnerInSidebar);
   const showStartDateInSidebar = useGanttStore((state) => state.showStartDateInSidebar);
   const showEndDateInSidebar = useGanttStore((state) => state.showEndDateInSidebar);
+  const showProgressInSidebar = useGanttStore((state) => state.showProgressInSidebar);
   const showAllParentTaskOptions = useGanttStore((state) => state.showAllParentTaskOptions);
   const excludeNonWorkingDays = useGanttStore((state) => state.excludeNonWorkingDays);
   const timelineScale = useGanttStore((state) => state.timelineScale);
@@ -193,6 +194,9 @@ export function App() {
   );
   const toggleSidebarEndDateVisibility = useGanttStore(
     (state) => state.toggleSidebarEndDateVisibility,
+  );
+  const toggleSidebarProgressVisibility = useGanttStore(
+    (state) => state.toggleSidebarProgressVisibility,
   );
   const toggleAllParentTaskOptionsVisibility = useGanttStore(
     (state) => state.toggleAllParentTaskOptionsVisibility,
@@ -623,6 +627,20 @@ export function App() {
                         )}
                       >
                         <CalendarRange className="h-4 w-4" />
+                      </button>
+                      <button
+                        type="button"
+                        onClick={toggleSidebarProgressVisibility}
+                        title="進捗率列の表示切替"
+                        aria-label="進捗率列の表示切替"
+                        className={cn(
+                          "inline-flex h-9 w-9 items-center justify-center rounded text-sm font-medium transition",
+                          showProgressInSidebar
+                            ? "bg-cyan-50 text-cyan-700"
+                            : "text-slate-700 hover:bg-cyan-50 hover:text-cyan-700",
+                        )}
+                      >
+                        %
                       </button>
                     </div>
 
