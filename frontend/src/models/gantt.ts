@@ -37,6 +37,12 @@ export type ProjectVersionSummary = {
   note: string | null;
 };
 
+export type ProjectSummary = {
+  id: number;
+  name: string;
+  version: number;
+};
+
 export type Viewport = {
   rowHeight: number;
   headerHeight: number;

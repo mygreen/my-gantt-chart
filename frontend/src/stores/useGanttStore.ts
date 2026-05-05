@@ -1,9 +1,13 @@
 import { create } from "zustand";
 import {
+  createProject as createProjectRequest,
+  deleteProject as deleteProjectRequest,
+  fetchProjects,
   fetchProjectVersions,
   fetchTasks,
   restoreProjectVersion,
   saveTasks,
+  type CreateProjectPayload,
   type GanttResponse,
   type SaveGanttPayload,
 } from "@/api/tasks";
@@ -28,6 +32,7 @@ import type {
   Holiday,
   InteractionMode,
   Member,
+  ProjectSummary,
   ProjectVersionSummary,
   Task,
   TaskType,
@@ -43,6 +48,8 @@ type PersistedState = Omit<SaveGanttPayload, "version"> & {
 };
 
 type GanttState = {
+  selectedProjectId: number;
+  projects: ProjectSummary[];
   projectName: string;
   projectVersion: number;
   projectStartDate: string;
@@ -70,9 +77,13 @@ type GanttState = {
   isSaving: boolean;
   savedState: PersistedState | null;
   savedSnapshot: string | null;
+  loadProjects: () => Promise<void>;
+  switchProject: (projectId: number) => Promise<void>;
+  createProject: (payload: CreateProjectPayload) => Promise<void>;
+  deleteProject: (projectId: number) => Promise<void>;
   setProjectName: (name: string) => void;
   setProjectSchedule: (startDate: string, endDate: string) => void;
-  loadTasks: () => Promise<void>;
+  loadTasks: (projectId?: number) => Promise<void>;
   saveChanges: () => Promise<void>;
   loadVersionHistory: () => Promise<void>;
   restoreVersion: (version: number) => Promise<void>;
@@ -290,6 +301,14 @@ function normalizeLoadedState(data: GanttResponse): PersistedState {
   };
 }
 
+function getFallbackProjectId(projects: ProjectSummary[], preferredProjectId: number | null) {
+  if (preferredProjectId !== null && projects.some((project) => project.id === preferredProjectId)) {
+    return preferredProjectId;
+  }
+
+  return projects[0]?.id ?? 1;
+}
+
 function findTaskSelection(
   requestedTaskId: number | null,
   previousTasks: Task[],
@@ -348,6 +367,7 @@ function restoreSavedState(
 }
 
 function buildLoadedStateUpdate(
+  projectId: number,
   persisted: PersistedState,
   previousSelectedTaskId: number | null,
   previousTasks: Task[],
@@ -364,6 +384,7 @@ function buildLoadedStateUpdate(
   const savedSnapshot = serializePersistedState(buildPersistedState(savedState));
 
   return {
+    selectedProjectId: projectId,
     projectName: persisted.projectName,
     projectVersion: persisted.projectVersion,
     projectStartDate: persisted.projectStartDate,
@@ -388,6 +409,8 @@ const initialToday = new Date().toISOString().slice(0, 10);
 
 export const useGanttStore = create<GanttState>((set, get) => ({
   projectName: "チーム進行ガントチャート",
+  selectedProjectId: 1,
+  projects: [],
   projectVersion: 1,
   projectStartDate: initialToday,
   projectEndDate: initialToday,
@@ -832,7 +855,7 @@ export const useGanttStore = create<GanttState>((set, get) => ({
     set((state) => {
       const nextId = state.members.reduce((maxId, member) => Math.max(maxId, member.id), 0) + 1;
       return applyDirtyAwareUpdate(state, {
-        members: [...state.members, { id: nextId, name: `メンバー ${nextId}` }],
+        members: [...state.members, { id: nextId, name: `鬯ｯ・ｯ繝ｻ・ｯ郢晢ｽｻ繝ｻ・ｩ鬮ｯ譎｢・ｽ・ｷ郢晢ｽｻ繝ｻ・｢驛｢譎｢・ｽ・ｻ郢晢ｽｻ繝ｻ・ｽ驛｢譎｢・ｽ・ｻ郢晢ｽｻ繝ｻ・｢鬯ｯ・ｮ繝ｻ・ｫ郢晢ｽｻ繝ｻ・ｴ鬯ｮ・ｮ隲幢ｽｶ繝ｻ・ｽ繝ｻ・｣驛｢譎｢・ｽ・ｻ郢晢ｽｻ繝ｻ・ｽ驛｢譎｢・ｽ・ｻ郢晢ｽｻ繝ｻ・｢鬯ｩ蟷｢・ｽ・｢髫ｴ雜｣・ｽ・｢郢晢ｽｻ繝ｻ・ｽ郢晢ｽｻ繝ｻ・ｻ鬩幢ｽ｢隴趣ｽ｢繝ｻ・ｽ繝ｻ・ｻ驛｢譎｢・ｽ・ｻ郢晢ｽｻ繝ｻ・ｽ鬯ｩ蟷｢・ｽ・｢髫ｴ雜｣・ｽ・｢郢晢ｽｻ繝ｻ・ｽ郢晢ｽｻ繝ｻ・ｻ鬩幢ｽ｢隴趣ｽ｢繝ｻ・ｽ繝ｻ・ｻ驛｢譎｢・ｽ・ｻ郢晢ｽｻ繝ｻ・｡鬯ｯ・ｯ繝ｻ・ｯ郢晢ｽｻ繝ｻ・ｩ鬮ｯ譎｢・ｽ・ｷ郢晢ｽｻ繝ｻ・｢驛｢譎｢・ｽ・ｻ郢晢ｽｻ繝ｻ・ｽ驛｢譎｢・ｽ・ｻ郢晢ｽｻ繝ｻ・｢鬯ｯ・ｮ繝ｻ・ｫ郢晢ｽｻ繝ｻ・ｴ鬯ｮ・ｮ隲幢ｽｶ繝ｻ・ｽ繝ｻ・｣驛｢譎｢・ｽ・ｻ郢晢ｽｻ繝ｻ・ｽ驛｢譎｢・ｽ・ｻ郢晢ｽｻ繝ｻ・｢鬯ｩ蟷｢・ｽ・｢髫ｴ雜｣・ｽ・｢郢晢ｽｻ繝ｻ・ｽ郢晢ｽｻ繝ｻ・ｻ鬩幢ｽ｢隴趣ｽ｢繝ｻ・ｽ繝ｻ・ｻ驛｢譎｢・ｽ・ｻ郢晢ｽｻ繝ｻ・ｽ鬯ｩ蟷｢・ｽ・｢髫ｴ雜｣・ｽ・｢郢晢ｽｻ繝ｻ・ｽ郢晢ｽｻ繝ｻ・ｻ鬩幢ｽ｢隴趣ｽ｢繝ｻ・ｽ繝ｻ・ｻ驛｢譎｢・ｽ・ｻ郢晢ｽｻ繝ｻ・ｳ鬯ｯ・ｯ繝ｻ・ｯ郢晢ｽｻ繝ｻ・ｩ鬮ｯ譎｢・ｽ・ｷ郢晢ｽｻ繝ｻ・｢驛｢譎｢・ｽ・ｻ郢晢ｽｻ繝ｻ・ｽ驛｢譎｢・ｽ・ｻ郢晢ｽｻ繝ｻ・｢鬯ｯ・ｮ繝ｻ・ｫ郢晢ｽｻ繝ｻ・ｴ鬮ｯ譏ｴ繝ｻ繝ｻ繝ｻ・ｹ譎｢・ｽ・ｻ鬯ｩ蟷｢・ｽ・｢髫ｴ雜｣・ｽ・｢郢晢ｽｻ繝ｻ・ｽ郢晢ｽｻ繝ｻ・ｻ鬯ｯ・ｯ繝ｻ・ｩ髯晢ｽｷ繝ｻ・｢郢晢ｽｻ繝ｻ・ｽ郢晢ｽｻ繝ｻ・｢鬯ｮ・ｫ繝ｻ・ｴ鬮ｮ諛ｶ・ｽ・｣郢晢ｽｻ繝ｻ・ｽ郢晢ｽｻ繝ｻ・｢鬩幢ｽ｢隴趣ｽ｢繝ｻ・ｽ繝ｻ・ｻ驛｢譎｢・ｽ・ｻ郢晢ｽｻ繝ｻ・ｽ鬩幢ｽ｢隴趣ｽ｢繝ｻ・ｽ繝ｻ・ｻ驛｢譎｢・ｽ・ｻ郢晢ｽｻ繝ｻ・ｻ ${nextId}` }],
       });
     });
   },
@@ -928,18 +951,93 @@ export const useGanttStore = create<GanttState>((set, get) => ({
     );
   },
 
-  loadTasks: async () => {
-    const previous = get();
+  loadProjects: async () => {
+    const current = get();
+
+    try {
+      const projects = await fetchProjects();
+      set({
+        projects,
+        selectedProjectId: getFallbackProjectId(projects, current.selectedProjectId),
+      });
+    } catch (error) {
+      set({
+        status: "error",
+        error: error instanceof Error ? error.message : "プロジェクト一覧の読み込みに失敗しました。",
+      });
+    }
+  },
+
+  switchProject: async (projectId) => {
+    await get().loadTasks(projectId);
+  },
+
+  createProject: async (payload) => {
     set({ status: "loading", error: null });
 
     try {
-      const data = await fetchTasks();
+      const project = await createProjectRequest(payload);
+      const projects = await fetchProjects();
+      set({
+        projects,
+        selectedProjectId: project.id,
+      });
+      await get().loadTasks(project.id);
+    } catch (error) {
+      set({
+        status: "error",
+        error: error instanceof Error ? error.message : "プロジェクトの追加に失敗しました。",
+      });
+    }
+  },
+
+  deleteProject: async (projectId) => {
+    const state = get();
+    set({ status: "loading", error: null });
+
+    try {
+      await deleteProjectRequest(projectId);
+      const projects = await fetchProjects();
+      const nextProjectId = getFallbackProjectId(
+        projects,
+        state.selectedProjectId === projectId ? null : state.selectedProjectId,
+      );
+      set({
+        projects,
+        selectedProjectId: nextProjectId,
+      });
+      await get().loadTasks(nextProjectId);
+    } catch (error) {
+      set({
+        status: "error",
+        error: error instanceof Error ? error.message : "プロジェクトの削除に失敗しました。",
+      });
+    }
+  },
+
+  loadTasks: async (projectId) => {
+    const previous = get();
+    const targetProjectId = projectId ?? previous.selectedProjectId;
+    set({ status: "loading", error: null });
+
+    try {
+      const [projects, data, versionHistory] = await Promise.all([
+        fetchProjects(),
+        fetchTasks(targetProjectId),
+        fetchProjectVersions(targetProjectId),
+      ]);
       const persisted = normalizeLoadedState(data);
-      const versionHistory = await fetchProjectVersions();
 
       set({
-        ...buildLoadedStateUpdate(persisted, previous.selectedTaskId, previous.tasks),
+        ...buildLoadedStateUpdate(
+          targetProjectId,
+          persisted,
+          previous.selectedTaskId,
+          previous.tasks,
+        ),
+        projects,
         versionHistory,
+        baselineDate: persisted.projectStartDate,
       });
     } catch (error) {
       set({
@@ -958,13 +1056,17 @@ export const useGanttStore = create<GanttState>((set, get) => ({
     set({ isSaving: true, error: null });
 
     try {
-      const response = await saveTasks(payload);
+      const response = await saveTasks(state.selectedProjectId, payload);
       const persisted = normalizeLoadedState(response);
-      const versionHistory = await fetchProjectVersions();
+      const [projects, versionHistory] = await Promise.all([
+        fetchProjects(),
+        fetchProjectVersions(state.selectedProjectId),
+      ]);
 
       set({
-        ...buildLoadedStateUpdate(persisted, selectedTaskId, previousTasks),
+        ...buildLoadedStateUpdate(state.selectedProjectId, persisted, selectedTaskId, previousTasks),
         isSaving: false,
+        projects,
         versionHistory,
       });
     } catch (error) {
@@ -978,7 +1080,7 @@ export const useGanttStore = create<GanttState>((set, get) => ({
 
   loadVersionHistory: async () => {
     try {
-      const versionHistory = await fetchProjectVersions();
+      const versionHistory = await fetchProjectVersions(get().selectedProjectId);
       set({ versionHistory });
     } catch (error) {
       set({
@@ -993,12 +1095,21 @@ export const useGanttStore = create<GanttState>((set, get) => ({
     set({ status: "loading", error: null });
 
     try {
-      const response = await restoreProjectVersion(version);
+      const response = await restoreProjectVersion(state.selectedProjectId, version);
       const persisted = normalizeLoadedState(response);
-      const versionHistory = await fetchProjectVersions();
+      const [projects, versionHistory] = await Promise.all([
+        fetchProjects(),
+        fetchProjectVersions(state.selectedProjectId),
+      ]);
 
       set({
-        ...buildLoadedStateUpdate(persisted, state.selectedTaskId, state.tasks),
+        ...buildLoadedStateUpdate(
+          state.selectedProjectId,
+          persisted,
+          state.selectedTaskId,
+          state.tasks,
+        ),
+        projects,
         versionHistory,
       });
     } catch (error) {

@@ -18,7 +18,10 @@ public class ProjectVersionEntity {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @Column(name = "version", nullable = false, unique = true)
+    @Column(name = "project_id", nullable = false)
+    private Long projectId;
+
+    @Column(name = "version", nullable = false)
     private int version;
 
     @Column(name = "saved_at", nullable = false)
@@ -34,7 +37,14 @@ public class ProjectVersionEntity {
     protected ProjectVersionEntity() {
     }
 
-    public ProjectVersionEntity(int version, LocalDateTime savedAt, String snapshotJson, String note) {
+    public ProjectVersionEntity(
+            Long projectId,
+            int version,
+            LocalDateTime savedAt,
+            String snapshotJson,
+            String note
+    ) {
+        this.projectId = projectId;
         this.version = version;
         this.savedAt = savedAt;
         this.snapshotJson = snapshotJson;
@@ -43,6 +53,10 @@ public class ProjectVersionEntity {
 
     public Long getId() {
         return id;
+    }
+
+    public Long getProjectId() {
+        return projectId;
     }
 
     public int getVersion() {

@@ -8,7 +8,9 @@ import java.util.Optional;
 
 public interface ProjectVersionRepository extends JpaRepository<ProjectVersionEntity, Long> {
 
-    List<ProjectVersionEntity> findAllByOrderByVersionDesc();
+    List<ProjectVersionEntity> findAllByProjectIdOrderByVersionDesc(Long projectId);
 
-    Optional<ProjectVersionEntity> findByVersion(int version);
+    Optional<ProjectVersionEntity> findByProjectIdAndVersion(Long projectId, int version);
+
+    void deleteAllByProjectId(Long projectId);
 }

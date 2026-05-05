@@ -17,7 +17,10 @@ public class HolidayEntity {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @Column(nullable = false, unique = true)
+    @Column(name = "project_id", nullable = false)
+    private Long projectId;
+
+    @Column(nullable = false)
     private LocalDate date;
 
     @Column(nullable = false)
@@ -26,13 +29,18 @@ public class HolidayEntity {
     protected HolidayEntity() {
     }
 
-    public HolidayEntity(LocalDate date, String name) {
+    public HolidayEntity(Long projectId, LocalDate date, String name) {
+        this.projectId = projectId;
         this.date = date;
         this.name = name;
     }
 
     public Long getId() {
         return id;
+    }
+
+    public Long getProjectId() {
+        return projectId;
     }
 
     public LocalDate getDate() {

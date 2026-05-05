@@ -1,6 +1,14 @@
-import type { Dependency, Holiday, Member, ProjectVersionSummary, Task } from "@/models/gantt";
+import type {
+  Dependency,
+  Holiday,
+  Member,
+  ProjectSummary,
+  ProjectVersionSummary,
+  Task,
+} from "@/models/gantt";
 
 export type GanttResponse = {
+  projectId: number;
   projectName: string;
   version: number;
   projectStartDate: string;
@@ -24,6 +32,16 @@ export type SaveGanttPayload = {
   holidays: Holiday[];
 };
 
+export type CreateProjectPayload = {
+  name: string;
+  sourceProjectId: number | null;
+  copyBasicSettings: boolean;
+  copyTasks: boolean;
+  copyDependencies: boolean;
+  copyHolidays: boolean;
+  copyMembers: boolean;
+};
+
 function normalizeTasks(tasks: Task[]): Task[] {
   return tasks.map((task) => ({
     ...task,
@@ -35,6 +53,7 @@ function normalizeTasks(tasks: Task[]): Task[] {
 function normalizeResponse(data: GanttResponse): GanttResponse {
   return {
     ...data,
+    projectId: Number(data.projectId) || 1,
     projectName: data.projectName || "チーム進行ガントチャート",
     version: Math.max(1, Number(data.version) || 1),
     excludeNonWorkingDays: Boolean(data.excludeNonWorkingDays),
@@ -45,8 +64,8 @@ function normalizeResponse(data: GanttResponse): GanttResponse {
   };
 }
 
-export async function fetchTasks(): Promise<GanttResponse> {
-  const response = await fetch("/api/tasks");
+export async function fetchTasks(projectId: number): Promise<GanttResponse> {
+  const response = await fetch(`/api/tasks?projectId=${projectId}`);
   if (!response.ok) {
     throw new Error(`API request failed: ${response.status}`);
   }
@@ -55,8 +74,8 @@ export async function fetchTasks(): Promise<GanttResponse> {
   return normalizeResponse(data);
 }
 
-export async function saveTasks(payload: SaveGanttPayload): Promise<GanttResponse> {
-  const response = await fetch("/api/tasks", {
+export async function saveTasks(projectId: number, payload: SaveGanttPayload): Promise<GanttResponse> {
+  const response = await fetch(`/api/tasks?projectId=${projectId}`, {
     method: "PUT",
     headers: {
       "Content-Type": "application/json",
@@ -72,8 +91,8 @@ export async function saveTasks(payload: SaveGanttPayload): Promise<GanttRespons
   return normalizeResponse(data);
 }
 
-export async function fetchProjectVersions(): Promise<ProjectVersionSummary[]> {
-  const response = await fetch("/api/tasks/versions");
+export async function fetchProjectVersions(projectId: number): Promise<ProjectVersionSummary[]> {
+  const response = await fetch(`/api/tasks/versions?projectId=${projectId}`);
 
   if (!response.ok) {
     throw new Error(`API request failed: ${response.status}`);
@@ -86,8 +105,8 @@ export async function fetchProjectVersions(): Promise<ProjectVersionSummary[]> {
   }));
 }
 
-export async function restoreProjectVersion(version: number): Promise<GanttResponse> {
-  const response = await fetch(`/api/tasks/versions/${version}/restore`, {
+export async function restoreProjectVersion(projectId: number, version: number): Promise<GanttResponse> {
+  const response = await fetch(`/api/tasks/versions/${version}/restore?projectId=${projectId}`, {
     method: "POST",
   });
 
@@ -97,4 +116,40 @@ export async function restoreProjectVersion(version: number): Promise<GanttRespo
 
   const data = (await response.json()) as GanttResponse;
   return normalizeResponse(data);
+}
+
+export async function fetchProjects(): Promise<ProjectSummary[]> {
+  const response = await fetch("/api/projects");
+  if (!response.ok) {
+    throw new Error(`API request failed: ${response.status}`);
+  }
+
+  const data = (await response.json()) as ProjectSummary[];
+  return data;
+}
+
+export async function createProject(payload: CreateProjectPayload): Promise<ProjectSummary> {
+  const response = await fetch("/api/projects", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify(payload),
+  });
+
+  if (!response.ok) {
+    throw new Error(`API request failed: ${response.status}`);
+  }
+
+  return (await response.json()) as ProjectSummary;
+}
+
+export async function deleteProject(projectId: number): Promise<void> {
+  const response = await fetch(`/api/projects/${projectId}`, {
+    method: "DELETE",
+  });
+
+  if (!response.ok) {
+    throw new Error(`API request failed: ${response.status}`);
+  }
 }

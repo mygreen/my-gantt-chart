@@ -30,7 +30,7 @@ import type { Holiday, Task, TimelineScale } from "@/models/gantt";
 import { useGanttStore } from "@/stores/useGanttStore";
 import { cn } from "@/utils/cn";
 
-type AppView = "gantt" | "project" | "holiday" | "versions" | "members";
+type AppView = "gantt" | "project" | "holiday" | "versions" | "members" | "system";
 
 const timelineScaleOptions: Array<{ value: TimelineScale; label: string }> = [
   { value: "day", label: "日" },
@@ -45,11 +45,11 @@ const appViews: Array<{
 }> = [
   { id: "gantt", label: "ガントチャート", icon: CalendarRange },
   { id: "project", label: "基本設定", icon: Settings2 },
-  { id: "holiday", label: "祝日設定", icon: CalendarDays },
   { id: "members", label: "メンバー設定", icon: Users },
+  { id: "holiday", label: "祝日設定", icon: CalendarDays },
+  { id: "versions", label: "バージョン管理", icon: History },
+  { id: "system", label: "システム設定", icon: Settings2 },
 ];
-
-appViews.splice(3, 0, { id: "versions", label: "バージョン管理", icon: History });
 
 function buildParentTaskCandidates(
   tasks: Task[],
@@ -118,8 +118,17 @@ async function parseHolidayUpload(file: File) {
 export function App() {
   const [activeView, setActiveView] = useState<AppView>("gantt");
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
+  const [newProjectName, setNewProjectName] = useState("");
+  const [sourceProjectId, setSourceProjectId] = useState<number | null>(null);
+  const [copyBasicSettings, setCopyBasicSettings] = useState(true);
+  const [copyTasks, setCopyTasks] = useState(false);
+  const [copyDependencies, setCopyDependencies] = useState(false);
+  const [copyHolidays, setCopyHolidays] = useState(true);
+  const [copyMembers, setCopyMembers] = useState(true);
   const holidayUploadRef = useRef<HTMLInputElement | null>(null);
 
+  const selectedProjectId = useGanttStore((state) => state.selectedProjectId);
+  const projects = useGanttStore((state) => state.projects);
   const projectName = useGanttStore((state) => state.projectName);
   const projectVersion = useGanttStore((state) => state.projectVersion);
   const projectStartDate = useGanttStore((state) => state.projectStartDate);
@@ -128,9 +137,13 @@ export function App() {
   const tasks = useGanttStore((state) => state.tasks);
   const holidays = useGanttStore((state) => state.holidays);
   const versionHistory = useGanttStore((state) => state.versionHistory);
+  const switchProject = useGanttStore((state) => state.switchProject);
   const loadTasks = useGanttStore((state) => state.loadTasks);
+  const loadProjects = useGanttStore((state) => state.loadProjects);
   const loadVersionHistory = useGanttStore((state) => state.loadVersionHistory);
   const saveChanges = useGanttStore((state) => state.saveChanges);
+  const createProject = useGanttStore((state) => state.createProject);
+  const deleteProject = useGanttStore((state) => state.deleteProject);
   const restoreVersion = useGanttStore((state) => state.restoreVersion);
   const discardChanges = useGanttStore((state) => state.discardChanges);
   const addTask = useGanttStore((state) => state.addTask);
@@ -201,10 +214,20 @@ export function App() {
   }, [loadTasks]);
 
   useEffect(() => {
+    void loadProjects();
+  }, [loadProjects]);
+
+  useEffect(() => {
     if (activeView === "versions") {
       void loadVersionHistory();
     }
-  }, [activeView, loadVersionHistory]);
+  }, [activeView, loadVersionHistory, selectedProjectId]);
+
+  useEffect(() => {
+    if (projects.length > 0 && sourceProjectId === null) {
+      setSourceProjectId(selectedProjectId);
+    }
+  }, [projects, selectedProjectId, sourceProjectId]);
 
   const handleHolidayUpload = async (event: ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
@@ -246,6 +269,63 @@ export function App() {
     }
 
     await loadTasks();
+  };
+
+  const handleProjectSwitch = async (nextProjectId: number) => {
+    if (nextProjectId === selectedProjectId) {
+      return;
+    }
+
+    if (
+      hasUnsavedChanges &&
+      !window.confirm("保存していない変更を破棄して、別プロジェクトへ切り替えますか？")
+    ) {
+      return;
+    }
+
+    await switchProject(nextProjectId);
+  };
+
+  const handleCreateProject = async () => {
+    if (!newProjectName.trim()) {
+      window.alert("プロジェクト名を入力してください。");
+      return;
+    }
+
+    if (!window.confirm("新しいプロジェクトを追加しますか？")) {
+      return;
+    }
+
+    await createProject({
+      name: newProjectName.trim(),
+      sourceProjectId,
+      copyBasicSettings,
+      copyTasks,
+      copyDependencies: copyTasks && copyDependencies,
+      copyHolidays,
+      copyMembers,
+    });
+
+    setNewProjectName("");
+    setCopyBasicSettings(true);
+    setCopyTasks(false);
+    setCopyDependencies(false);
+    setCopyHolidays(true);
+    setCopyMembers(true);
+    setActiveView("gantt");
+  };
+
+  const handleDeleteProject = async (projectId: number) => {
+    const target = projects.find((project) => project.id === projectId);
+    if (!target) {
+      return;
+    }
+
+    if (!window.confirm(`プロジェクト「${target.name}」を削除しますか？`)) {
+      return;
+    }
+
+    await deleteProject(projectId);
   };
 
   const handleRestoreVersion = async (version: number) => {
@@ -302,7 +382,22 @@ export function App() {
               </button>
             </div>
             {!isSidebarCollapsed ? (
-              <h1 className="mt-3 text-sm font-medium text-slate-600">{projectName}</h1>
+              <div className="mt-3">
+                <label className="mb-1 block text-[11px] font-medium text-slate-500">
+                  プロジェクト
+                </label>
+                <select
+                  value={selectedProjectId}
+                  onChange={(event) => void handleProjectSwitch(Number(event.target.value))}
+                  className="h-9 w-full rounded-md border border-slate-200 bg-white px-3 text-sm text-slate-700 outline-none transition focus:border-cyan-300"
+                >
+                  {projects.map((project) => (
+                    <option key={project.id} value={project.id}>
+                      {project.name}
+                    </option>
+                  ))}
+                </select>
+              </div>
             ) : null}
           </div>
 
@@ -1013,6 +1108,133 @@ export function App() {
                     {versionHistory.length === 0 ? (
                       <div className="px-3 py-6 text-sm text-slate-500">保存済みの版はまだありません。</div>
                     ) : null}
+                  </div>
+                </div>
+              </section>
+            </div>
+          ) : null}
+
+          {activeView === "system" ? (
+            <div className="flex h-full flex-col gap-4 overflow-auto">
+              <section className="rounded-lg border border-slate-200 bg-white p-5 shadow-sm">
+                <div className="flex flex-wrap items-center justify-between gap-3">
+                  <div>
+                    <h2 className="text-lg font-semibold text-slate-900">システム設定</h2>
+                    <p className="mt-1 text-sm text-slate-500">
+                      プロジェクトの追加、削除、コピー元指定を管理できます。
+                    </p>
+                  </div>
+                </div>
+
+                <div className="mt-5 grid gap-4 rounded-md border border-slate-200 bg-slate-50 p-4">
+                  <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_220px]">
+                    <label className="flex flex-col gap-1">
+                      <span className="text-[11px] font-medium text-slate-600">新しいプロジェクト名</span>
+                      <input
+                        type="text"
+                        value={newProjectName}
+                        onChange={(event) => setNewProjectName(event.target.value)}
+                        className="h-10 rounded-md border border-slate-200 bg-white px-3 text-sm text-slate-900 outline-none transition focus:border-cyan-300"
+                      />
+                    </label>
+                    <label className="flex flex-col gap-1">
+                      <span className="text-[11px] font-medium text-slate-600">コピー元プロジェクト</span>
+                      <select
+                        value={sourceProjectId ?? ""}
+                        onChange={(event) =>
+                          setSourceProjectId(event.target.value ? Number(event.target.value) : null)
+                        }
+                        className="h-10 rounded-md border border-slate-200 bg-white px-3 text-sm text-slate-900 outline-none transition focus:border-cyan-300"
+                      >
+                        <option value="">コピーしない</option>
+                        {projects.map((project) => (
+                          <option key={project.id} value={project.id}>
+                            {project.name}
+                          </option>
+                        ))}
+                      </select>
+                    </label>
+                  </div>
+
+                  <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-5">
+                    {[
+                      { label: "基本設定", checked: copyBasicSettings, setter: setCopyBasicSettings },
+                      { label: "タスク", checked: copyTasks, setter: setCopyTasks },
+                      { label: "関連線", checked: copyDependencies, setter: setCopyDependencies },
+                      { label: "祝日設定", checked: copyHolidays, setter: setCopyHolidays },
+                      { label: "メンバー設定", checked: copyMembers, setter: setCopyMembers },
+                    ].map(({ label, checked, setter }) => (
+                      <label
+                        key={label}
+                        className="flex items-center gap-2 rounded-md border border-slate-200 bg-white px-3 py-2 text-sm text-slate-700"
+                      >
+                        <input
+                          type="checkbox"
+                          checked={checked}
+                          onChange={(event) => setter(event.target.checked)}
+                          disabled={!sourceProjectId || (label === "関連線" && !copyTasks)}
+                          className="h-4 w-4 rounded border-slate-300 text-cyan-600 focus:ring-cyan-300"
+                        />
+                        <span>{label}</span>
+                      </label>
+                    ))}
+                  </div>
+
+                  <div className="flex justify-end">
+                    <button
+                      type="button"
+                      onClick={() => void handleCreateProject()}
+                      className="inline-flex h-10 items-center gap-2 rounded-md border border-slate-200 bg-white px-4 text-sm font-medium text-slate-700 transition hover:border-cyan-300 hover:text-cyan-700"
+                    >
+                      <FolderPlus className="h-4 w-4" />
+                      プロジェクト追加
+                    </button>
+                  </div>
+                </div>
+              </section>
+
+              <section className="rounded-lg border border-slate-200 bg-white p-5 shadow-sm">
+                <h3 className="text-lg font-semibold text-slate-900">プロジェクト一覧</h3>
+                <div className="mt-4 overflow-hidden rounded-md border border-slate-200">
+                  <div className="grid grid-cols-[80px_minmax(0,1fr)_120px_120px] border-b border-slate-200 bg-slate-50 px-3 py-2 text-[11px] font-semibold text-slate-600">
+                    <span>ID</span>
+                    <span>プロジェクト名</span>
+                    <span>バージョン</span>
+                    <span className="text-right">操作</span>
+                  </div>
+                  <div className="divide-y divide-slate-200">
+                    {projects.map((project) => (
+                      <div
+                        key={project.id}
+                        className="grid grid-cols-[80px_minmax(0,1fr)_120px_120px] items-center gap-3 px-3 py-2"
+                      >
+                        <span className="text-sm text-slate-500">{project.id}</span>
+                        <span className="text-sm font-medium text-slate-800">{project.name}</span>
+                        <span className="text-sm text-slate-600">{`v${project.version}`}</span>
+                        <div className="flex justify-end gap-2">
+                          <button
+                            type="button"
+                            onClick={() => void handleProjectSwitch(project.id)}
+                            className="inline-flex h-9 items-center rounded-md border border-slate-200 bg-white px-3 text-sm text-slate-700 transition hover:border-cyan-300 hover:text-cyan-700"
+                          >
+                            切替
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => void handleDeleteProject(project.id)}
+                            disabled={projects.length <= 1}
+                            className={cn(
+                              "inline-flex h-9 items-center rounded-md border px-3 text-sm transition",
+                              projects.length <= 1
+                                ? "cursor-not-allowed border-slate-200 bg-slate-100 text-slate-400"
+                                : "border-rose-200 bg-rose-50 text-rose-700 hover:border-rose-300 hover:bg-rose-100",
+                            )}
+                          >
+                            削除
+                          </button>
+                        </div>
+                      </div>
+                    ))}
                   </div>
                 </div>
               </section>

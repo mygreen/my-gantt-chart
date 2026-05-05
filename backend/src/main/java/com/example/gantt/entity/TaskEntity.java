@@ -19,6 +19,9 @@ public class TaskEntity {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
+    @Column(name = "project_id", nullable = false)
+    private Long projectId;
+
     @Column(nullable = false)
     private String name;
 
@@ -52,6 +55,7 @@ public class TaskEntity {
     }
 
     public TaskEntity(
+            Long projectId,
             String name,
             String owner,
             LocalDate startDate,
@@ -62,6 +66,7 @@ public class TaskEntity {
             TaskType taskType,
             int displayOrder
     ) {
+        this.projectId = projectId;
         this.name = name;
         this.owner = owner;
         this.startDate = startDate;
@@ -75,6 +80,10 @@ public class TaskEntity {
 
     public Long getId() {
         return id;
+    }
+
+    public Long getProjectId() {
+        return projectId;
     }
 
     public String getName() {
@@ -114,6 +123,7 @@ public class TaskEntity {
     }
 
     public void update(
+            Long projectId,
             String name,
             String owner,
             LocalDate startDate,
@@ -124,6 +134,7 @@ public class TaskEntity {
             TaskType taskType,
             int displayOrder
     ) {
+        this.projectId = projectId;
         this.name = name;
         this.owner = owner;
         this.startDate = startDate;

@@ -15,6 +15,9 @@ public class DependencyEntity {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
+    @Column(name = "project_id", nullable = false)
+    private Long projectId;
+
     @Column(name = "from_task_id", nullable = false)
     private Long fromTaskId;
 
@@ -24,13 +27,18 @@ public class DependencyEntity {
     protected DependencyEntity() {
     }
 
-    public DependencyEntity(Long fromTaskId, Long toTaskId) {
+    public DependencyEntity(Long projectId, Long fromTaskId, Long toTaskId) {
+        this.projectId = projectId;
         this.fromTaskId = fromTaskId;
         this.toTaskId = toTaskId;
     }
 
     public Long getId() {
         return id;
+    }
+
+    public Long getProjectId() {
+        return projectId;
     }
 
     public Long getFromTaskId() {

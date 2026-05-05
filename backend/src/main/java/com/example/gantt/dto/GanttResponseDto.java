@@ -4,6 +4,7 @@ import java.time.LocalDate;
 import java.util.List;
 
 public record GanttResponseDto(
+        Long projectId,
         String projectName,
         int version,
         LocalDate projectStartDate,

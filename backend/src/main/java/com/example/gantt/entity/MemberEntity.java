@@ -15,6 +15,9 @@ public class MemberEntity {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
+    @Column(name = "project_id", nullable = false)
+    private Long projectId;
+
     @Column(nullable = false)
     private String name;
 
@@ -24,13 +27,18 @@ public class MemberEntity {
     protected MemberEntity() {
     }
 
-    public MemberEntity(String name, int displayOrder) {
+    public MemberEntity(Long projectId, String name, int displayOrder) {
+        this.projectId = projectId;
         this.name = name;
         this.displayOrder = displayOrder;
     }
 
     public Long getId() {
         return id;
+    }
+
+    public Long getProjectId() {
+        return projectId;
     }
 
     public String getName() {
