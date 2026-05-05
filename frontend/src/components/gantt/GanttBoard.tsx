@@ -22,6 +22,7 @@ function buildSidebarColumns(
   showOwnerColumn: boolean,
   showStartDateColumn: boolean,
   showEndDateColumn: boolean,
+  showProgressColumn: boolean,
 ) {
   const columns = ["32px", "minmax(0,2.2fr)"];
   if (showOwnerColumn) {
@@ -32,6 +33,9 @@ function buildSidebarColumns(
   }
   if (showEndDateColumn) {
     columns.push("88px");
+  }
+  if (showProgressColumn) {
+    columns.push("64px");
   }
   columns.push("56px", "12px");
   return columns.join(" ");
@@ -63,6 +67,7 @@ export function GanttBoard() {
   const showOwnerInSidebar = useGanttStore((state) => state.showOwnerInSidebar);
   const showStartDateInSidebar = useGanttStore((state) => state.showStartDateInSidebar);
   const showEndDateInSidebar = useGanttStore((state) => state.showEndDateInSidebar);
+  const showProgressInSidebar = useGanttStore((state) => state.showProgressInSidebar);
   const toggleTaskDone = useGanttStore((state) => state.toggleTaskDone);
   const excludeNonWorkingDays = useGanttStore((state) => state.excludeNonWorkingDays);
 
@@ -119,6 +124,7 @@ export function GanttBoard() {
     showOwnerInSidebar,
     showStartDateInSidebar,
     showEndDateInSidebar,
+    showProgressInSidebar,
   );
   const visibleBoardWidth = Math.max(viewportWidth - viewport.sidebarWidth, 0);
 
@@ -182,6 +188,7 @@ export function GanttBoard() {
             {showOwnerInSidebar ? <span>担当者</span> : null}
             {showStartDateInSidebar ? <span>開始日</span> : null}
             {showEndDateInSidebar ? <span>終了日</span> : null}
+            {showProgressInSidebar ? <span className="text-right">進捗率</span> : null}
             <span className="text-right">工数</span>
             <span />
           </div>
@@ -215,6 +222,7 @@ export function GanttBoard() {
               {showOwnerInSidebar ? <p className="text-xs text-slate-400" /> : null}
               {showStartDateInSidebar ? <p className="text-xs text-slate-400" /> : null}
               {showEndDateInSidebar ? <p className="text-xs text-slate-400" /> : null}
+              {showProgressInSidebar ? <p className="text-xs text-slate-400" /> : null}
               <p className="text-right text-xs text-slate-400" />
               <span className="inline-flex h-2 w-2 rounded-full bg-amber-500" />
             </div>
@@ -229,6 +237,7 @@ export function GanttBoard() {
             showOwnerColumn={showOwnerInSidebar}
             showStartDateColumn={showStartDateInSidebar}
             showEndDateColumn={showEndDateInSidebar}
+            showProgressColumn={showProgressInSidebar}
             onTaskContextMenu={handleTaskContextMenu}
           />
         </div>

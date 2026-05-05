@@ -75,6 +75,7 @@ type GanttState = {
   showOwnerInSidebar: boolean;
   showStartDateInSidebar: boolean;
   showEndDateInSidebar: boolean;
+  showProgressInSidebar: boolean;
   showAllParentTaskOptions: boolean;
   excludeNonWorkingDays: boolean;
   timelineScale: TimelineScale;
@@ -113,6 +114,7 @@ type GanttState = {
   toggleSidebarOwnerVisibility: () => void;
   toggleSidebarStartDateVisibility: () => void;
   toggleSidebarEndDateVisibility: () => void;
+  toggleSidebarProgressVisibility: () => void;
   toggleAllParentTaskOptionsVisibility: () => void;
   toggleNonWorkingDayExclusion: () => void;
   setTimelineScale: (scale: TimelineScale) => void;
@@ -458,6 +460,7 @@ export const useGanttStore = create<GanttState>((set, get) => ({
   showOwnerInSidebar: true,
   showStartDateInSidebar: false,
   showEndDateInSidebar: false,
+  showProgressInSidebar: false,
   showAllParentTaskOptions: false,
   excludeNonWorkingDays: false,
   timelineScale: "day",
@@ -501,6 +504,12 @@ export const useGanttStore = create<GanttState>((set, get) => ({
   toggleSidebarEndDateVisibility: () => {
     set((state) => ({
       showEndDateInSidebar: !state.showEndDateInSidebar,
+    }));
+  },
+
+  toggleSidebarProgressVisibility: () => {
+    set((state) => ({
+      showProgressInSidebar: !state.showProgressInSidebar,
     }));
   },
 

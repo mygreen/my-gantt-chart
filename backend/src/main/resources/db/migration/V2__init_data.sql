@@ -67,3 +67,5 @@ insert into holidays (project_id, date, name) values
 (0, date '2026-10-12', 'スポーツの日'),
 (0, date '2026-11-03', '文化の日'),
 (0, date '2026-11-23', '勤労感謝の日');
+
+alter table tasks alter column id restart with 1000;
