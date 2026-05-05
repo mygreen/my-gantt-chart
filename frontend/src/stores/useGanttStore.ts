@@ -1,12 +1,14 @@
-import { create } from "zustand";
+﻿import { create } from "zustand";
 import {
   createProject as createProjectRequest,
   deleteProject as deleteProjectRequest,
   fetchProjects,
   fetchProjectVersions,
+  fetchSystemHolidays,
   fetchTasks,
   restoreProjectVersion,
   saveTasks,
+  saveSystemHolidays,
   type CreateProjectPayload,
   type GanttResponse,
   type SaveGanttPayload,
@@ -43,8 +45,16 @@ import type {
 type AddTaskMode = "child" | "sibling" | "tail";
 type StoreStatus = "idle" | "loading" | "ready" | "error";
 
-type PersistedState = Omit<SaveGanttPayload, "version"> & {
+type PersistedState = {
+  projectName: string;
   projectVersion: number;
+  projectStartDate: string;
+  projectEndDate: string;
+  excludeNonWorkingDays: boolean;
+  members: Member[];
+  tasks: Task[];
+  dependencies: Dependency[];
+  projectHolidays: Holiday[];
 };
 
 type GanttState = {
@@ -58,6 +68,8 @@ type GanttState = {
   tasks: Task[];
   dependencies: Dependency[];
   holidays: Holiday[];
+  projectHolidays: Holiday[];
+  systemHolidays: Holiday[];
   versionHistory: ProjectVersionSummary[];
   viewport: Viewport;
   showOwnerInSidebar: boolean;
@@ -123,6 +135,12 @@ type GanttState = {
   updateHoliday: (holidayId: number, updates: Pick<Holiday, "date" | "name">) => void;
   deleteHoliday: (holidayId: number) => void;
   importHolidays: (holidays: Array<Pick<Holiday, "date" | "name">>) => void;
+  addSystemHoliday: () => void;
+  updateSystemHoliday: (holidayId: number, updates: Pick<Holiday, "date" | "name">) => void;
+  deleteSystemHoliday: (holidayId: number) => void;
+  importSystemHolidays: (holidays: Array<Pick<Holiday, "date" | "name">>) => void;
+  saveSystemHolidayChanges: () => Promise<void>;
+  loadSystemHolidays: () => Promise<void>;
   addMember: () => void;
   updateMember: (memberId: number, name: string) => void;
   deleteMember: (memberId: number) => void;
@@ -139,7 +157,7 @@ type DirtyComputableState = Pick<
   | "members"
   | "tasks"
   | "dependencies"
-  | "holidays"
+  | "projectHolidays"
   | "excludeNonWorkingDays"
 >;
 
@@ -153,6 +171,17 @@ function clampProgress(progress: number) {
 
 function applyTaskUpdates(tasks: Task[], holidays: Holiday[], excludeNonWorkingDays: boolean) {
   return syncParentTaskProgress(tasks, holidays, excludeNonWorkingDays);
+}
+
+function mergeHolidays(systemHolidays: Holiday[], projectHolidays: Holiday[]) {
+  const byDate = new Map<string, Holiday>();
+  systemHolidays.forEach((holiday) => {
+    byDate.set(holiday.date, holiday);
+  });
+  projectHolidays.forEach((holiday) => {
+    byDate.set(holiday.date, holiday);
+  });
+  return Array.from(byDate.values()).sort((left, right) => left.date.localeCompare(right.date));
 }
 
 function deriveMembers(tasks: Task[]) {
@@ -252,7 +281,7 @@ function buildPersistedState(source: DirtyComputableState): SaveGanttPayload {
       type: task.type ?? "task",
     })),
     dependencies: source.dependencies.map((dependency) => ({ ...dependency })),
-    holidays: source.holidays.map((holiday) => ({ ...holiday })),
+    holidays: source.projectHolidays.map((holiday) => ({ ...holiday })),
   };
 }
 
@@ -297,7 +326,7 @@ function normalizeLoadedState(data: GanttResponse): PersistedState {
       type: task.type ?? "task",
     })),
     dependencies: data.dependencies.map((dependency) => ({ ...dependency })),
-    holidays: data.holidays.map((holiday) => ({ ...holiday })),
+    projectHolidays: (data.projectHolidays ?? []).map((holiday) => ({ ...holiday })),
   };
 }
 
@@ -340,12 +369,13 @@ function findTaskSelection(
 
 function restoreSavedState(
   savedState: PersistedState,
+  systemHolidays: Holiday[],
   selectedTaskId: number | null,
   currentTasks: Task[],
 ): Partial<GanttState> {
   const nextTasks = applyTaskUpdates(
     savedState.tasks,
-    savedState.holidays,
+    mergeHolidays(systemHolidays, savedState.projectHolidays),
     savedState.excludeNonWorkingDays,
   );
 
@@ -357,7 +387,8 @@ function restoreSavedState(
     members: savedState.members,
     tasks: nextTasks,
     dependencies: savedState.dependencies,
-    holidays: savedState.holidays,
+    projectHolidays: savedState.projectHolidays,
+    holidays: mergeHolidays(systemHolidays, savedState.projectHolidays),
     excludeNonWorkingDays: savedState.excludeNonWorkingDays,
     selectedTaskId: findTaskSelection(selectedTaskId, currentTasks, nextTasks),
     pendingDependencyFromTaskId: null,
@@ -369,12 +400,13 @@ function restoreSavedState(
 function buildLoadedStateUpdate(
   projectId: number,
   persisted: PersistedState,
+  systemHolidays: Holiday[],
   previousSelectedTaskId: number | null,
   previousTasks: Task[],
 ) {
   const nextTasks = applyTaskUpdates(
     persisted.tasks,
-    persisted.holidays,
+    mergeHolidays(systemHolidays, persisted.projectHolidays),
     persisted.excludeNonWorkingDays,
   );
   const savedState: PersistedState = {
@@ -392,7 +424,8 @@ function buildLoadedStateUpdate(
     members: persisted.members,
     tasks: nextTasks,
     dependencies: persisted.dependencies,
-    holidays: persisted.holidays,
+    projectHolidays: persisted.projectHolidays,
+    holidays: mergeHolidays(systemHolidays, persisted.projectHolidays),
     excludeNonWorkingDays: persisted.excludeNonWorkingDays,
     pendingDependencyFromTaskId: null,
     selectedTaskId: findTaskSelection(previousSelectedTaskId, previousTasks, nextTasks),
@@ -418,6 +451,8 @@ export const useGanttStore = create<GanttState>((set, get) => ({
   tasks: [],
   dependencies: [],
   holidays: [],
+  projectHolidays: [],
+  systemHolidays: [],
   versionHistory: [],
   viewport: defaultViewport,
   showOwnerInSidebar: true,
@@ -785,49 +820,59 @@ export const useGanttStore = create<GanttState>((set, get) => ({
 
   addHoliday: () => {
     set((state) => {
-      const nextId = state.holidays.reduce((maxId, holiday) => Math.max(maxId, holiday.id), 0) + 1;
+      const nextId =
+        state.projectHolidays.reduce((maxId, holiday) => Math.max(maxId, holiday.id), 0) + 1;
+      const projectHolidays = [
+        ...state.projectHolidays,
+        {
+          id: nextId,
+          date: state.projectStartDate,
+          name: "新しい休日",
+        },
+      ];
       return applyDirtyAwareUpdate(state, {
-        holidays: [
-          ...state.holidays,
-          {
-            id: nextId,
-            date: state.projectStartDate,
-            name: "新しい祝日",
-          },
-        ],
+        projectHolidays,
+        holidays: mergeHolidays(state.systemHolidays, projectHolidays),
       });
     });
   },
 
   updateHoliday: (holidayId, updates) => {
-    set((state) =>
-      applyDirtyAwareUpdate(state, {
-        holidays: state.holidays.map((holiday) =>
-          holiday.id === holidayId ? { ...holiday, ...updates } : holiday,
-        ),
-      }),
-    );
+    set((state) => {
+      const projectHolidays = state.projectHolidays.map((holiday) =>
+        holiday.id === holidayId ? { ...holiday, ...updates } : holiday,
+      );
+      return applyDirtyAwareUpdate(state, {
+        projectHolidays,
+        holidays: mergeHolidays(state.systemHolidays, projectHolidays),
+      });
+    });
   },
 
   deleteHoliday: (holidayId) => {
-    set((state) =>
-      applyDirtyAwareUpdate(state, {
-        holidays: state.holidays.filter((holiday) => holiday.id !== holidayId),
-      }),
-    );
+    set((state) => {
+      const projectHolidays = state.projectHolidays.filter((holiday) => holiday.id !== holidayId);
+      return applyDirtyAwareUpdate(state, {
+        projectHolidays,
+        holidays: mergeHolidays(state.systemHolidays, projectHolidays),
+      });
+    });
   },
 
   importHolidays: (holidays) => {
     set((state) => {
-      let nextId = state.holidays.reduce((maxId, holiday) => Math.max(maxId, holiday.id), 0) + 1;
-      const existingByDate = new Map(state.holidays.map((holiday) => [holiday.date, holiday]));
+      let nextId =
+        state.projectHolidays.reduce((maxId, holiday) => Math.max(maxId, holiday.id), 0) + 1;
+      const existingByDate = new Map(
+        state.projectHolidays.map((holiday) => [holiday.date, holiday]),
+      );
       const importedByDate = new Map(
         holidays
           .filter((holiday) => holiday.date && holiday.name)
           .map((holiday) => [holiday.date, holiday]),
       );
 
-      const nextHolidays = state.holidays.map((holiday) => {
+      const projectHolidays = state.projectHolidays.map((holiday) => {
         const imported = importedByDate.get(holiday.date);
         if (!imported) {
           return holiday;
@@ -845,7 +890,7 @@ export const useGanttStore = create<GanttState>((set, get) => ({
           return;
         }
 
-        nextHolidays.push({
+        projectHolidays.push({
           id: nextId++,
           date: holiday.date,
           name: holiday.name,
@@ -853,16 +898,144 @@ export const useGanttStore = create<GanttState>((set, get) => ({
       });
 
       return applyDirtyAwareUpdate(state, {
-        holidays: nextHolidays,
+        projectHolidays,
+        holidays: mergeHolidays(state.systemHolidays, projectHolidays),
       });
     });
+  },
+
+  addSystemHoliday: () => {
+    set((state) => {
+      const nextId =
+        state.systemHolidays.reduce((maxId, holiday) => Math.max(maxId, holiday.id), 0) + 1;
+      const systemHolidays = [
+        ...state.systemHolidays,
+        {
+          id: nextId,
+          date: state.projectStartDate,
+          name: "新しい祝日",
+        },
+      ];
+      return {
+        systemHolidays,
+        holidays: mergeHolidays(systemHolidays, state.projectHolidays),
+      };
+    });
+  },
+
+  updateSystemHoliday: (holidayId, updates) => {
+    set((state) => {
+      const systemHolidays = state.systemHolidays.map((holiday) =>
+        holiday.id === holidayId ? { ...holiday, ...updates } : holiday,
+      );
+      return {
+        systemHolidays,
+        holidays: mergeHolidays(systemHolidays, state.projectHolidays),
+      };
+    });
+  },
+
+  deleteSystemHoliday: (holidayId) => {
+    set((state) => {
+      const systemHolidays = state.systemHolidays.filter((holiday) => holiday.id !== holidayId);
+      return {
+        systemHolidays,
+        holidays: mergeHolidays(systemHolidays, state.projectHolidays),
+      };
+    });
+  },
+
+  importSystemHolidays: (holidays) => {
+    set((state) => {
+      let nextId =
+        state.systemHolidays.reduce((maxId, holiday) => Math.max(maxId, holiday.id), 0) + 1;
+      const existingByDate = new Map(
+        state.systemHolidays.map((holiday) => [holiday.date, holiday]),
+      );
+      const importedByDate = new Map(
+        holidays
+          .filter((holiday) => holiday.date && holiday.name)
+          .map((holiday) => [holiday.date, holiday]),
+      );
+
+      const systemHolidays = state.systemHolidays.map((holiday) => {
+        const imported = importedByDate.get(holiday.date);
+        if (!imported) {
+          return holiday;
+        }
+
+        importedByDate.delete(holiday.date);
+        return {
+          ...holiday,
+          name: imported.name,
+        };
+      });
+
+      importedByDate.forEach((holiday) => {
+        if (existingByDate.has(holiday.date)) {
+          return;
+        }
+
+        systemHolidays.push({
+          id: nextId++,
+          date: holiday.date,
+          name: holiday.name,
+        });
+      });
+
+      return {
+        systemHolidays,
+        holidays: mergeHolidays(systemHolidays, state.projectHolidays),
+      };
+    });
+  },
+
+  saveSystemHolidayChanges: async () => {
+    const state = get();
+    set({ status: "loading", error: null });
+
+    try {
+      const systemHolidays = await saveSystemHolidays(
+        state.systemHolidays.map((holiday) => ({
+          id: holiday.id,
+          date: holiday.date,
+          name: holiday.name,
+        })),
+      );
+
+      set({
+        status: "ready",
+        systemHolidays,
+        holidays: mergeHolidays(systemHolidays, get().projectHolidays),
+      });
+    } catch (error) {
+      set({
+        status: "error",
+        error: error instanceof Error ? error.message : "保存に失敗しました。",
+      });
+    }
+  },
+
+  loadSystemHolidays: async () => {
+    try {
+      const systemHolidays = await fetchSystemHolidays();
+      set((state) => ({
+        systemHolidays,
+        holidays: mergeHolidays(systemHolidays, state.projectHolidays),
+      }));
+    } catch (error) {
+      set({
+        status: "error",
+        error: error instanceof Error ? error.message : "祝日設定の読み込みに失敗しました。",
+      });
+    }
   },
 
   addMember: () => {
     set((state) => {
       const nextId = state.members.reduce((maxId, member) => Math.max(maxId, member.id), 0) + 1;
       return applyDirtyAwareUpdate(state, {
-        members: [...state.members, { id: nextId, name: `鬯ｯ・ｯ繝ｻ・ｯ郢晢ｽｻ繝ｻ・ｩ鬮ｯ譎｢・ｽ・ｷ郢晢ｽｻ繝ｻ・｢驛｢譎｢・ｽ・ｻ郢晢ｽｻ繝ｻ・ｽ驛｢譎｢・ｽ・ｻ郢晢ｽｻ繝ｻ・｢鬯ｯ・ｮ繝ｻ・ｫ郢晢ｽｻ繝ｻ・ｴ鬯ｮ・ｮ隲幢ｽｶ繝ｻ・ｽ繝ｻ・｣驛｢譎｢・ｽ・ｻ郢晢ｽｻ繝ｻ・ｽ驛｢譎｢・ｽ・ｻ郢晢ｽｻ繝ｻ・｢鬯ｩ蟷｢・ｽ・｢髫ｴ雜｣・ｽ・｢郢晢ｽｻ繝ｻ・ｽ郢晢ｽｻ繝ｻ・ｻ鬩幢ｽ｢隴趣ｽ｢繝ｻ・ｽ繝ｻ・ｻ驛｢譎｢・ｽ・ｻ郢晢ｽｻ繝ｻ・ｽ鬯ｩ蟷｢・ｽ・｢髫ｴ雜｣・ｽ・｢郢晢ｽｻ繝ｻ・ｽ郢晢ｽｻ繝ｻ・ｻ鬩幢ｽ｢隴趣ｽ｢繝ｻ・ｽ繝ｻ・ｻ驛｢譎｢・ｽ・ｻ郢晢ｽｻ繝ｻ・｡鬯ｯ・ｯ繝ｻ・ｯ郢晢ｽｻ繝ｻ・ｩ鬮ｯ譎｢・ｽ・ｷ郢晢ｽｻ繝ｻ・｢驛｢譎｢・ｽ・ｻ郢晢ｽｻ繝ｻ・ｽ驛｢譎｢・ｽ・ｻ郢晢ｽｻ繝ｻ・｢鬯ｯ・ｮ繝ｻ・ｫ郢晢ｽｻ繝ｻ・ｴ鬯ｮ・ｮ隲幢ｽｶ繝ｻ・ｽ繝ｻ・｣驛｢譎｢・ｽ・ｻ郢晢ｽｻ繝ｻ・ｽ驛｢譎｢・ｽ・ｻ郢晢ｽｻ繝ｻ・｢鬯ｩ蟷｢・ｽ・｢髫ｴ雜｣・ｽ・｢郢晢ｽｻ繝ｻ・ｽ郢晢ｽｻ繝ｻ・ｻ鬩幢ｽ｢隴趣ｽ｢繝ｻ・ｽ繝ｻ・ｻ驛｢譎｢・ｽ・ｻ郢晢ｽｻ繝ｻ・ｽ鬯ｩ蟷｢・ｽ・｢髫ｴ雜｣・ｽ・｢郢晢ｽｻ繝ｻ・ｽ郢晢ｽｻ繝ｻ・ｻ鬩幢ｽ｢隴趣ｽ｢繝ｻ・ｽ繝ｻ・ｻ驛｢譎｢・ｽ・ｻ郢晢ｽｻ繝ｻ・ｳ鬯ｯ・ｯ繝ｻ・ｯ郢晢ｽｻ繝ｻ・ｩ鬮ｯ譎｢・ｽ・ｷ郢晢ｽｻ繝ｻ・｢驛｢譎｢・ｽ・ｻ郢晢ｽｻ繝ｻ・ｽ驛｢譎｢・ｽ・ｻ郢晢ｽｻ繝ｻ・｢鬯ｯ・ｮ繝ｻ・ｫ郢晢ｽｻ繝ｻ・ｴ鬮ｯ譏ｴ繝ｻ繝ｻ繝ｻ・ｹ譎｢・ｽ・ｻ鬯ｩ蟷｢・ｽ・｢髫ｴ雜｣・ｽ・｢郢晢ｽｻ繝ｻ・ｽ郢晢ｽｻ繝ｻ・ｻ鬯ｯ・ｯ繝ｻ・ｩ髯晢ｽｷ繝ｻ・｢郢晢ｽｻ繝ｻ・ｽ郢晢ｽｻ繝ｻ・｢鬯ｮ・ｫ繝ｻ・ｴ鬮ｮ諛ｶ・ｽ・｣郢晢ｽｻ繝ｻ・ｽ郢晢ｽｻ繝ｻ・｢鬩幢ｽ｢隴趣ｽ｢繝ｻ・ｽ繝ｻ・ｻ驛｢譎｢・ｽ・ｻ郢晢ｽｻ繝ｻ・ｽ鬩幢ｽ｢隴趣ｽ｢繝ｻ・ｽ繝ｻ・ｻ驛｢譎｢・ｽ・ｻ郢晢ｽｻ繝ｻ・ｻ ${nextId}` }],
+        members: [...state.members, { id: nextId, name: `新規メンバー ${nextId}` }],
       });
     });
   },
@@ -967,6 +1140,7 @@ export const useGanttStore = create<GanttState>((set, get) => ({
         projects,
         selectedProjectId: getFallbackProjectId(projects, current.selectedProjectId),
       });
+      await get().loadSystemHolidays();
     } catch (error) {
       set({
         status: "error",
@@ -1028,10 +1202,11 @@ export const useGanttStore = create<GanttState>((set, get) => ({
     set({ status: "loading", error: null });
 
     try {
-      const [projects, data, versionHistory] = await Promise.all([
+      const [projects, data, versionHistory, systemHolidays] = await Promise.all([
         fetchProjects(),
         fetchTasks(targetProjectId),
         fetchProjectVersions(targetProjectId),
+        fetchSystemHolidays(),
       ]);
       const persisted = normalizeLoadedState(data);
 
@@ -1039,10 +1214,12 @@ export const useGanttStore = create<GanttState>((set, get) => ({
         ...buildLoadedStateUpdate(
           targetProjectId,
           persisted,
+          systemHolidays,
           previous.selectedTaskId,
           previous.tasks,
         ),
         projects,
+        systemHolidays,
         versionHistory,
         baselineDate: persisted.projectStartDate,
       });
@@ -1065,15 +1242,23 @@ export const useGanttStore = create<GanttState>((set, get) => ({
     try {
       const response = await saveTasks(state.selectedProjectId, payload);
       const persisted = normalizeLoadedState(response);
-      const [projects, versionHistory] = await Promise.all([
+      const [projects, versionHistory, systemHolidays] = await Promise.all([
         fetchProjects(),
         fetchProjectVersions(state.selectedProjectId),
+        fetchSystemHolidays(),
       ]);
 
       set({
-        ...buildLoadedStateUpdate(state.selectedProjectId, persisted, selectedTaskId, previousTasks),
+        ...buildLoadedStateUpdate(
+          state.selectedProjectId,
+          persisted,
+          systemHolidays,
+          selectedTaskId,
+          previousTasks,
+        ),
         isSaving: false,
         projects,
+        systemHolidays,
         versionHistory,
       });
     } catch (error) {
@@ -1104,19 +1289,22 @@ export const useGanttStore = create<GanttState>((set, get) => ({
     try {
       const response = await restoreProjectVersion(state.selectedProjectId, version);
       const persisted = normalizeLoadedState(response);
-      const [projects, versionHistory] = await Promise.all([
+      const [projects, versionHistory, systemHolidays] = await Promise.all([
         fetchProjects(),
         fetchProjectVersions(state.selectedProjectId),
+        fetchSystemHolidays(),
       ]);
 
       set({
         ...buildLoadedStateUpdate(
           state.selectedProjectId,
           persisted,
+          systemHolidays,
           state.selectedTaskId,
           state.tasks,
         ),
         projects,
+        systemHolidays,
         versionHistory,
       });
     } catch (error) {
@@ -1133,6 +1321,9 @@ export const useGanttStore = create<GanttState>((set, get) => ({
       return;
     }
 
-    set(restoreSavedState(state.savedState, state.selectedTaskId, state.tasks));
+    set(restoreSavedState(state.savedState, state.systemHolidays, state.selectedTaskId, state.tasks));
   },
 }));
+
+
+

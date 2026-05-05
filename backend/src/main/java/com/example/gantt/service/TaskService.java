@@ -52,6 +52,7 @@ import java.util.stream.Collectors;
 public class TaskService {
 
     private static final Long DEFAULT_PROJECT_ID = 1L;
+    private static final Long SYSTEM_PROJECT_ID = 0L;
 
     private final TaskRepository taskRepository;
     private final DependencyRepository dependencyRepository;
@@ -94,9 +95,14 @@ public class TaskService {
         List<DependencyDto> dependencies = dependencyRepository.findAllByProjectIdOrderByIdAsc(projectId).stream()
                 .map(DependencyDto::fromEntity)
                 .toList();
-        List<HolidayDto> holidays = holidayRepository.findAllByProjectIdOrderByDateAsc(projectId).stream()
+        List<HolidayDto> projectHolidays = holidayRepository.findAllByProjectIdOrderByDateAsc(projectId).stream()
                 .map(HolidayDto::fromEntity)
                 .toList();
+        List<HolidayDto> systemHolidays = holidayRepository.findAllByProjectIdOrderByDateAsc(SYSTEM_PROJECT_ID).stream()
+                .map(HolidayDto::fromEntity)
+                .toList();
+        List<HolidayDto> holidays = new ArrayList<>(systemHolidays);
+        holidays.addAll(projectHolidays);
         List<MemberDto> members = memberRepository.findAllByProjectIdOrderByDisplayOrderAscIdAsc(projectId).stream()
                 .map(MemberDto::fromEntity)
                 .toList();
@@ -111,8 +117,33 @@ public class TaskService {
                 members,
                 tasks,
                 dependencies,
-                holidays
+                holidays,
+                projectHolidays,
+                systemHolidays
         );
+    }
+
+    public List<HolidayDto> getSystemHolidays() {
+        return holidayRepository.findAllByProjectIdOrderByDateAsc(SYSTEM_PROJECT_ID).stream()
+                .map(HolidayDto::fromEntity)
+                .toList();
+    }
+
+    public List<HolidayDto> saveSystemHolidays(List<SaveHolidayRequest> request) {
+        holidayRepository.deleteAllByProjectId(SYSTEM_PROJECT_ID);
+
+        Map<LocalDate, SaveHolidayRequest> holidaysByDate = new LinkedHashMap<>();
+        for (SaveHolidayRequest holiday : request) {
+            holidaysByDate.put(holiday.date(), holiday);
+        }
+
+        return holidayRepository.saveAll(holidaysByDate.values().stream()
+                        .map(holiday -> new HolidayEntity(SYSTEM_PROJECT_ID, holiday.date(), holiday.name()))
+                        .toList())
+                .stream()
+                .sorted(Comparator.comparing(HolidayEntity::getDate))
+                .map(HolidayDto::fromEntity)
+                .toList();
     }
 
     public GanttResponseDto saveGanttBoard(Long projectId, SaveGanttRequest request) {
@@ -386,6 +417,15 @@ public class TaskService {
         }
         memberRepository.saveAll(memberEntities);
 
+        List<HolidayDto> projectHolidays = holidayRepository.findAllByProjectIdOrderByDateAsc(projectId).stream()
+                .map(HolidayDto::fromEntity)
+                .toList();
+        List<HolidayDto> systemHolidays = holidayRepository.findAllByProjectIdOrderByDateAsc(SYSTEM_PROJECT_ID).stream()
+                .map(HolidayDto::fromEntity)
+                .toList();
+        List<HolidayDto> combinedHolidays = new ArrayList<>(systemHolidays);
+        combinedHolidays.addAll(projectHolidays);
+
         GanttResponseDto response = new GanttResponseDto(
                 settings.getId(),
                 settings.getProjectName(),
@@ -404,9 +444,9 @@ public class TaskService {
                 dependencyRepository.findAllByProjectIdOrderByIdAsc(projectId).stream()
                         .map(DependencyDto::fromEntity)
                         .toList(),
-                holidayRepository.findAllByProjectIdOrderByDateAsc(projectId).stream()
-                        .map(HolidayDto::fromEntity)
-                        .toList()
+                combinedHolidays,
+                projectHolidays,
+                systemHolidays
         );
         saveProjectVersionSnapshot(projectId, response, request, versionNote);
         return response;
@@ -540,7 +580,7 @@ public class TaskService {
                                 dependency.toTaskId()
                         ))
                         .toList(),
-                response.holidays().stream()
+                response.projectHolidays().stream()
                         .map(holiday -> new SaveHolidayRequest(holiday.id(), holiday.date(), holiday.name()))
                         .toList()
         );

@@ -18,6 +18,8 @@ export type GanttResponse = {
   tasks: Task[];
   dependencies: Dependency[];
   holidays: Holiday[];
+  projectHolidays: Holiday[];
+  systemHolidays: Holiday[];
 };
 
 export type SaveGanttPayload = {
@@ -31,6 +33,8 @@ export type SaveGanttPayload = {
   dependencies: Dependency[];
   holidays: Holiday[];
 };
+
+export type SystemHolidayPayload = Array<Pick<Holiday, "id" | "date" | "name">>;
 
 export type CreateProjectPayload = {
   name: string;
@@ -61,6 +65,8 @@ function normalizeResponse(data: GanttResponse): GanttResponse {
     tasks: normalizeTasks(data.tasks ?? []),
     dependencies: data.dependencies ?? [],
     holidays: data.holidays ?? [],
+    projectHolidays: data.projectHolidays ?? data.holidays ?? [],
+    systemHolidays: data.systemHolidays ?? [],
   };
 }
 
@@ -152,4 +158,29 @@ export async function deleteProject(projectId: number): Promise<void> {
   if (!response.ok) {
     throw new Error(`API request failed: ${response.status}`);
   }
+}
+
+export async function fetchSystemHolidays(): Promise<Holiday[]> {
+  const response = await fetch("/api/system/holidays");
+  if (!response.ok) {
+    throw new Error(`API request failed: ${response.status}`);
+  }
+
+  return ((await response.json()) as Holiday[]) ?? [];
+}
+
+export async function saveSystemHolidays(payload: SystemHolidayPayload): Promise<Holiday[]> {
+  const response = await fetch("/api/system/holidays", {
+    method: "PUT",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify(payload),
+  });
+
+  if (!response.ok) {
+    throw new Error(`API request failed: ${response.status}`);
+  }
+
+  return ((await response.json()) as Holiday[]) ?? [];
 }

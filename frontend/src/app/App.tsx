@@ -30,7 +30,15 @@ import type { Holiday, Task, TimelineScale } from "@/models/gantt";
 import { useGanttStore } from "@/stores/useGanttStore";
 import { cn } from "@/utils/cn";
 
-type AppView = "gantt" | "project" | "holiday" | "versions" | "members" | "system";
+type SidebarSection = "project" | "system";
+type AppView =
+  | "gantt"
+  | "project"
+  | "members"
+  | "projectHoliday"
+  | "versions"
+  | "projectAdmin"
+  | "systemHoliday";
 
 const timelineScaleOptions: Array<{ value: TimelineScale; label: string }> = [
   { value: "day", label: "日" },
@@ -38,7 +46,7 @@ const timelineScaleOptions: Array<{ value: TimelineScale; label: string }> = [
   { value: "month", label: "月" },
 ];
 
-const appViews: Array<{
+const projectViews: Array<{
   id: AppView;
   label: string;
   icon: typeof CalendarRange;
@@ -46,9 +54,17 @@ const appViews: Array<{
   { id: "gantt", label: "ガントチャート", icon: CalendarRange },
   { id: "project", label: "基本設定", icon: Settings2 },
   { id: "members", label: "メンバー設定", icon: Users },
-  { id: "holiday", label: "祝日設定", icon: CalendarDays },
+  { id: "projectHoliday", label: "プロジェクト休日", icon: CalendarDays },
   { id: "versions", label: "バージョン管理", icon: History },
-  { id: "system", label: "システム設定", icon: Settings2 },
+];
+
+const systemViews: Array<{
+  id: AppView;
+  label: string;
+  icon: typeof CalendarRange;
+}> = [
+  { id: "projectAdmin", label: "プロジェクト管理", icon: Settings2 },
+  { id: "systemHoliday", label: "祝日設定", icon: CalendarDays },
 ];
 
 function buildParentTaskCandidates(
@@ -117,6 +133,7 @@ async function parseHolidayUpload(file: File) {
 
 export function App() {
   const [activeView, setActiveView] = useState<AppView>("gantt");
+  const [sidebarSection, setSidebarSection] = useState<SidebarSection>("project");
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
   const [newProjectName, setNewProjectName] = useState("");
   const [sourceProjectId, setSourceProjectId] = useState<number | null>(null);
@@ -126,6 +143,7 @@ export function App() {
   const [copyHolidays, setCopyHolidays] = useState(true);
   const [copyMembers, setCopyMembers] = useState(true);
   const holidayUploadRef = useRef<HTMLInputElement | null>(null);
+  const systemHolidayUploadRef = useRef<HTMLInputElement | null>(null);
 
   const selectedProjectId = useGanttStore((state) => state.selectedProjectId);
   const projects = useGanttStore((state) => state.projects);
@@ -136,6 +154,8 @@ export function App() {
   const members = useGanttStore((state) => state.members);
   const tasks = useGanttStore((state) => state.tasks);
   const holidays = useGanttStore((state) => state.holidays);
+  const projectHolidays = useGanttStore((state) => state.projectHolidays);
+  const systemHolidays = useGanttStore((state) => state.systemHolidays);
   const versionHistory = useGanttStore((state) => state.versionHistory);
   const switchProject = useGanttStore((state) => state.switchProject);
   const loadTasks = useGanttStore((state) => state.loadTasks);
@@ -189,6 +209,12 @@ export function App() {
   const updateHoliday = useGanttStore((state) => state.updateHoliday);
   const deleteHoliday = useGanttStore((state) => state.deleteHoliday);
   const importHolidays = useGanttStore((state) => state.importHolidays);
+  const addSystemHoliday = useGanttStore((state) => state.addSystemHoliday);
+  const updateSystemHoliday = useGanttStore((state) => state.updateSystemHoliday);
+  const deleteSystemHoliday = useGanttStore((state) => state.deleteSystemHoliday);
+  const importSystemHolidays = useGanttStore((state) => state.importSystemHolidays);
+  const saveSystemHolidayChanges = useGanttStore((state) => state.saveSystemHolidayChanges);
+  const loadSystemHolidays = useGanttStore((state) => state.loadSystemHolidays);
   const addMember = useGanttStore((state) => state.addMember);
   const updateMember = useGanttStore((state) => state.updateMember);
   const deleteMember = useGanttStore((state) => state.deleteMember);
@@ -208,6 +234,7 @@ export function App() {
     [isSelectedMilestone, selectedTask, showAllParentTaskOptions, tasks],
   );
   const memberNames = useMemo(() => members.map((member) => member.name), [members]);
+  const visibleViews = sidebarSection === "project" ? projectViews : systemViews;
 
   useEffect(() => {
     void loadTasks();
@@ -240,6 +267,28 @@ export function App() {
       importHolidays(parsed);
     } finally {
       event.target.value = "";
+    }
+  };
+
+  const handleSystemHolidayUpload = async (event: ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) {
+      return;
+    }
+
+    try {
+      const parsed = await parseHolidayUpload(file);
+      importSystemHolidays(parsed);
+    } finally {
+      event.target.value = "";
+    }
+  };
+
+  const handleSidebarSectionChange = (nextSection: SidebarSection) => {
+    setSidebarSection(nextSection);
+    const nextViews = nextSection === "project" ? projectViews : systemViews;
+    if (!nextViews.some((view) => view.id === activeView)) {
+      setActiveView(nextViews[0].id);
     }
   };
 
@@ -382,27 +431,55 @@ export function App() {
               </button>
             </div>
             {!isSidebarCollapsed ? (
-              <div className="mt-3">
-                <label className="mb-1 block text-[11px] font-medium text-slate-500">
-                  プロジェクト
-                </label>
-                <select
-                  value={selectedProjectId}
-                  onChange={(event) => void handleProjectSwitch(Number(event.target.value))}
-                  className="h-9 w-full rounded-md border border-slate-200 bg-white px-3 text-sm text-slate-700 outline-none transition focus:border-cyan-300"
-                >
-                  {projects.map((project) => (
-                    <option key={project.id} value={project.id}>
-                      {project.name}
-                    </option>
-                  ))}
-                </select>
+              <div className="mt-3 space-y-3">
+                <div className="inline-flex rounded-md border border-slate-200 bg-slate-50 p-1">
+                  <button
+                    type="button"
+                    onClick={() => handleSidebarSectionChange("project")}
+                    className={cn(
+                      "inline-flex h-8 items-center whitespace-nowrap rounded px-2 text-xs transition",
+                      sidebarSection === "project"
+                        ? "bg-white text-cyan-700 shadow-sm"
+                        : "text-slate-500 hover:text-slate-900",
+                    )}
+                  >
+                    プロジェクト設定
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => handleSidebarSectionChange("system")}
+                    className={cn(
+                      "inline-flex h-8 items-center whitespace-nowrap rounded px-2 text-xs transition",
+                      sidebarSection === "system"
+                        ? "bg-white text-cyan-700 shadow-sm"
+                        : "text-slate-500 hover:text-slate-900",
+                    )}
+                  >
+                    システム設定
+                  </button>
+                </div>
+                {sidebarSection === "project" ? (
+                  <label className="flex flex-col gap-1">
+                    <span className="text-[11px] font-medium text-slate-600">プロジェクト</span>
+                    <select
+                      value={selectedProjectId}
+                      onChange={(event) => void handleProjectSwitch(Number(event.target.value))}
+                      className="h-10 rounded-md border border-slate-200 bg-white px-3 text-sm text-slate-900 outline-none transition focus:border-cyan-300"
+                    >
+                      {projects.map((project) => (
+                        <option key={project.id} value={project.id}>
+                          {project.name}
+                        </option>
+                      ))}
+                    </select>
+                  </label>
+                ) : null}
               </div>
             ) : null}
           </div>
 
           <nav className="p-2">
-            {appViews.map((view) => {
+            {visibleViews.map((view) => {
               const Icon = view.icon;
               return (
                 <button
@@ -945,10 +1022,10 @@ export function App() {
             </div>
           ) : null}
 
-          {activeView === "holiday" ? (
+          {activeView === "projectHoliday" ? (
             <div className="flex h-full flex-col gap-4 overflow-auto">
               <section className="rounded-lg border border-slate-200 bg-white p-5 shadow-sm">
-                <h2 className="text-lg font-semibold text-slate-900">祝日設定</h2>
+                <h2 className="text-lg font-semibold text-slate-900">プロジェクト休日</h2>
                 <div className="mt-4 flex items-center gap-3 rounded-md border border-slate-200 bg-slate-50 px-4 py-3">
                   <CalendarDays className="h-4 w-4 text-slate-500" />
                   <span className="text-sm text-slate-700">
@@ -969,7 +1046,7 @@ export function App() {
               <section className="rounded-lg border border-slate-200 bg-white p-5 shadow-sm">
                 <div className="flex flex-wrap items-center justify-between gap-3">
                   <div>
-                    <h3 className="text-lg font-semibold text-slate-900">祝日一覧</h3>
+                    <h3 className="text-lg font-semibold text-slate-900">プロジェクト休日一覧</h3>
                     <p className="mt-1 text-sm text-slate-500">
                       祝日の追加、編集、CSV / JSON アップロードができます。
                     </p>
@@ -996,7 +1073,7 @@ export function App() {
                       className="inline-flex h-9 items-center gap-2 rounded-md border border-slate-200 bg-white px-3 text-sm font-medium text-slate-700 transition hover:border-cyan-300 hover:text-cyan-700"
                     >
                       <CalendarDays className="h-4 w-4" />
-                      祝日追加
+                      休日追加
                     </button>
                   </div>
                 </div>
@@ -1008,7 +1085,7 @@ export function App() {
                     <span />
                   </div>
                   <div className="divide-y divide-slate-200">
-                    {holidays.map((holiday) => (
+                    {projectHolidays.map((holiday) => (
                       <div
                         key={holiday.id}
                         className="grid grid-cols-[160px_minmax(0,1fr)_88px] items-center gap-3 px-3 py-2"
@@ -1116,12 +1193,12 @@ export function App() {
             </div>
           ) : null}
 
-          {activeView === "system" ? (
+          {activeView === "projectAdmin" ? (
             <div className="flex h-full flex-col gap-4 overflow-auto">
               <section className="rounded-lg border border-slate-200 bg-white p-5 shadow-sm">
                 <div className="flex flex-wrap items-center justify-between gap-3">
                   <div>
-                    <h2 className="text-lg font-semibold text-slate-900">システム設定</h2>
+                    <h2 className="text-lg font-semibold text-slate-900">プロジェクト管理</h2>
                     <p className="mt-1 text-sm text-slate-500">
                       プロジェクトの追加、削除、コピー元指定を管理できます。
                     </p>
@@ -1163,7 +1240,7 @@ export function App() {
                       { label: "基本設定", checked: copyBasicSettings, setter: setCopyBasicSettings },
                       { label: "タスク", checked: copyTasks, setter: setCopyTasks },
                       { label: "関連線", checked: copyDependencies, setter: setCopyDependencies },
-                      { label: "祝日設定", checked: copyHolidays, setter: setCopyHolidays },
+                      { label: "プロジェクト休日", checked: copyHolidays, setter: setCopyHolidays },
                       { label: "メンバー設定", checked: copyMembers, setter: setCopyMembers },
                     ].map(({ label, checked, setter }) => (
                       <label
@@ -1235,6 +1312,107 @@ export function App() {
                             削除
                           </button>
                         </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </section>
+            </div>
+          ) : null}
+
+          {activeView === "systemHoliday" ? (
+            <div className="flex h-full flex-col gap-4 overflow-auto">
+              <section className="rounded-lg border border-slate-200 bg-white p-5 shadow-sm">
+                <h2 className="text-lg font-semibold text-slate-900">祝日設定</h2>
+                <p className="mt-1 text-sm text-slate-500">
+                  システム共通の祝日を設定します。すべてのプロジェクトで共通に使われます。
+                </p>
+              </section>
+
+              <section className="rounded-lg border border-slate-200 bg-white p-5 shadow-sm">
+                <div className="flex flex-wrap items-center justify-between gap-3">
+                  <div>
+                    <h3 className="text-lg font-semibold text-slate-900">祝日一覧</h3>
+                    <p className="mt-1 text-sm text-slate-500">
+                      祝日の追加、編集、CSV / JSON アップロードができます。
+                    </p>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <input
+                      ref={systemHolidayUploadRef}
+                      type="file"
+                      accept=".csv,.json"
+                      className="hidden"
+                      onChange={(event) => void handleSystemHolidayUpload(event)}
+                    />
+                    <button
+                      type="button"
+                      onClick={() => systemHolidayUploadRef.current?.click()}
+                      className="inline-flex h-9 items-center gap-2 rounded-md border border-slate-200 bg-white px-3 text-sm font-medium text-slate-700 transition hover:border-cyan-300 hover:text-cyan-700"
+                    >
+                      <Upload className="h-4 w-4" />
+                      アップロード
+                    </button>
+                    <button
+                      type="button"
+                      onClick={addSystemHoliday}
+                      className="inline-flex h-9 items-center gap-2 rounded-md border border-slate-200 bg-white px-3 text-sm font-medium text-slate-700 transition hover:border-cyan-300 hover:text-cyan-700"
+                    >
+                      <CalendarDays className="h-4 w-4" />
+                      祝日追加
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => void saveSystemHolidayChanges()}
+                      className="inline-flex h-9 items-center gap-2 rounded-md border border-slate-200 bg-white px-3 text-sm font-medium text-slate-700 transition hover:border-cyan-300 hover:text-cyan-700"
+                    >
+                      <Save className="h-4 w-4" />
+                      保存
+                    </button>
+                  </div>
+                </div>
+
+                <div className="mt-4 overflow-hidden rounded-md border border-slate-200">
+                  <div className="grid grid-cols-[160px_minmax(0,1fr)_88px] border-b border-slate-200 bg-slate-50 px-3 py-2 text-[11px] font-semibold text-slate-600">
+                    <span>日付</span>
+                    <span>名称</span>
+                    <span />
+                  </div>
+                  <div className="divide-y divide-slate-200">
+                    {systemHolidays.map((holiday) => (
+                      <div
+                        key={holiday.id}
+                        className="grid grid-cols-[160px_minmax(0,1fr)_88px] items-center gap-3 px-3 py-2"
+                      >
+                        <input
+                          type="date"
+                          value={holiday.date}
+                          onChange={(event) =>
+                            updateSystemHoliday(holiday.id, {
+                              date: event.target.value,
+                              name: holiday.name,
+                            })
+                          }
+                          className="h-9 rounded-md border border-slate-200 bg-white px-3 text-sm text-slate-900 outline-none transition focus:border-cyan-300"
+                        />
+                        <input
+                          type="text"
+                          value={holiday.name}
+                          onChange={(event) =>
+                            updateSystemHoliday(holiday.id, {
+                              date: holiday.date,
+                              name: event.target.value,
+                            })
+                          }
+                          className="h-9 rounded-md border border-slate-200 bg-white px-3 text-sm text-slate-900 outline-none transition focus:border-cyan-300"
+                        />
+                        <button
+                          type="button"
+                          onClick={() => deleteSystemHoliday(holiday.id)}
+                          className="inline-flex h-9 items-center justify-center rounded-md border border-rose-200 bg-rose-50 text-rose-700 transition hover:border-rose-300 hover:bg-rose-100"
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </button>
                       </div>
                     ))}
                   </div>

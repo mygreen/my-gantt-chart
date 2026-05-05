@@ -3,9 +3,11 @@ package com.example.gantt.controller;
 import com.example.gantt.dto.CreateProjectRequest;
 import com.example.gantt.dto.CreateTaskRequest;
 import com.example.gantt.dto.GanttResponseDto;
+import com.example.gantt.dto.HolidayDto;
 import com.example.gantt.dto.ProjectSummaryDto;
 import com.example.gantt.dto.ProjectVersionSummaryDto;
 import com.example.gantt.dto.SaveGanttRequest;
+import com.example.gantt.dto.SaveHolidayRequest;
 import com.example.gantt.dto.TaskDto;
 import com.example.gantt.service.TaskService;
 import jakarta.validation.Valid;
@@ -48,6 +50,16 @@ public class TaskController {
     @ResponseStatus(HttpStatus.NO_CONTENT)
     public void deleteProject(@PathVariable Long projectId) {
         taskService.deleteProject(projectId);
+    }
+
+    @GetMapping("/system/holidays")
+    public List<HolidayDto> getSystemHolidays() {
+        return taskService.getSystemHolidays();
+    }
+
+    @PutMapping("/system/holidays")
+    public List<HolidayDto> saveSystemHolidays(@RequestBody List<SaveHolidayRequest> request) {
+        return taskService.saveSystemHolidays(request);
     }
 
     @GetMapping("/tasks")

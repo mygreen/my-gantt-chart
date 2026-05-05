@@ -13,6 +13,8 @@ public record GanttResponseDto(
         List<MemberDto> members,
         List<TaskDto> tasks,
         List<DependencyDto> dependencies,
-        List<HolidayDto> holidays
+        List<HolidayDto> holidays,
+        List<HolidayDto> projectHolidays,
+        List<HolidayDto> systemHolidays
 ) {
 }
