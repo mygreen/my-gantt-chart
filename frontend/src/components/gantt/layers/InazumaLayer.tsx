@@ -40,9 +40,15 @@ function buildInazumaPoints(
       }
 
       const progressRatio = getTaskProgressRatio(task, holidays, excludeNonWorkingDays);
+      const startsAfterBaseline = parseISO(task.startDate).getTime() > baseline.getTime();
+      const isFutureNotStarted =
+        startsAfterBaseline && (task.progress <= 0 || progressRatio <= 0 || task.status === "todo");
       const isCompletedBeforeBaseline =
         task.status === "done" && parseISO(task.endDate).getTime() <= baseline.getTime();
-      const x = isCompletedBeforeBaseline ? baselineX : layout.x + layout.width * progressRatio;
+      const x =
+        isCompletedBeforeBaseline || isFutureNotStarted
+          ? baselineX
+          : layout.x + layout.width * progressRatio;
       const y = layout.y + layout.height / 2;
 
       return {

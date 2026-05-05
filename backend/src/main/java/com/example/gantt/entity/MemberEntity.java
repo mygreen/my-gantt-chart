@@ -8,8 +8,8 @@ import jakarta.persistence.Id;
 import jakarta.persistence.Table;
 
 @Entity
-@Table(name = "dependencies")
-public class DependencyEntity {
+@Table(name = "members")
+public class MemberEntity {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -18,19 +18,19 @@ public class DependencyEntity {
     @Column(name = "project_id", nullable = false)
     private Long projectId;
 
-    @Column(name = "from_task_id", nullable = false)
-    private Long fromTaskId;
+    @Column(nullable = false)
+    private String name;
 
-    @Column(name = "to_task_id", nullable = false)
-    private Long toTaskId;
+    @Column(name = "display_order", nullable = false)
+    private int displayOrder;
 
-    protected DependencyEntity() {
+    protected MemberEntity() {
     }
 
-    public DependencyEntity(Long projectId, Long fromTaskId, Long toTaskId) {
+    public MemberEntity(Long projectId, String name, int displayOrder) {
         this.projectId = projectId;
-        this.fromTaskId = fromTaskId;
-        this.toTaskId = toTaskId;
+        this.name = name;
+        this.displayOrder = displayOrder;
     }
 
     public Long getId() {
@@ -41,11 +41,11 @@ public class DependencyEntity {
         return projectId;
     }
 
-    public Long getFromTaskId() {
-        return fromTaskId;
+    public String getName() {
+        return name;
     }
 
-    public Long getToTaskId() {
-        return toTaskId;
+    public int getDisplayOrder() {
+        return displayOrder;
     }
 }
