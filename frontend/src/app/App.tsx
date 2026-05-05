@@ -812,7 +812,24 @@ export function App() {
                           <input
                             type="text"
                             list="member-candidates"
-                            value={selectedTask.owner}
+                            value={selectedTask.owner === "未設定" ? "" : selectedTask.owner}
+                            placeholder="未設定"
+                            onFocus={(event) => {
+                              event.currentTarget.showPicker?.();
+                            }}
+                            onClick={(event) => {
+                              event.currentTarget.showPicker?.();
+                            }}
+                            onBlur={(event) => {
+                              if (event.target.value.trim() === "") {
+                                updateTaskDetails(selectedTask.id, {
+                                  name: selectedTask.name,
+                                  owner: "未設定",
+                                  progress: selectedTask.progress,
+                                  status: selectedTask.status,
+                                });
+                              }
+                            }}
                             onChange={(event) =>
                               updateTaskDetails(selectedTask.id, {
                                 name: selectedTask.name,
