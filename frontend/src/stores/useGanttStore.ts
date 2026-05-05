@@ -604,10 +604,12 @@ export const useGanttStore = create<GanttState>((set, get) => ({
       const nextId = state.tasks.reduce((maxId, task) => Math.max(maxId, task.id), 0) + 1;
       const selectedTask = state.tasks.find((task) => task.id === state.selectedTaskId) ?? null;
       const tailTask = state.tasks[state.tasks.length - 1] ?? null;
+      const effectiveMode =
+        mode === "child" && selectedTask?.type === "milestone" ? "tail" : mode;
       const parentTaskId =
-        mode === "child"
+        effectiveMode === "child"
           ? (selectedTask?.id ?? null)
-          : mode === "sibling"
+          : effectiveMode === "sibling"
             ? (selectedTask?.parentTaskId ?? null)
             : null;
       const baseDate =
@@ -625,7 +627,12 @@ export const useGanttStore = create<GanttState>((set, get) => ({
         type,
       };
 
-      const nextTasks = insertTaskByMode(state.tasks, newTask, mode, state.selectedTaskId);
+      const nextTasks = insertTaskByMode(
+        state.tasks,
+        newTask,
+        effectiveMode,
+        state.selectedTaskId,
+      );
       return applyDirtyAwareUpdate(state, {
         tasks: applyTaskUpdates(nextTasks, state.holidays, state.excludeNonWorkingDays),
         selectedTaskId: newTask.id,

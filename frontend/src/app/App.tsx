@@ -565,12 +565,12 @@ export function App() {
                       <button
                         type="button"
                         onClick={() => addTask("child")}
-                        disabled={!selectedTask}
+                        disabled={!selectedTask || isSelectedMilestone}
                         title="子タスク追加"
                         aria-label="子タスク追加"
                         className={cn(
                           "inline-flex h-9 w-9 items-center justify-center rounded text-sm font-medium transition",
-                          selectedTask
+                          selectedTask && !isSelectedMilestone
                             ? "text-slate-700 hover:bg-cyan-50 hover:text-cyan-700"
                             : "cursor-not-allowed text-slate-400",
                         )}
@@ -1317,4 +1317,3 @@ export function App() {
     </main>
   );
 }
-
