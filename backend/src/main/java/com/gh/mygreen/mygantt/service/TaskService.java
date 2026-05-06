@@ -1,5 +1,23 @@
 package com.gh.mygreen.mygantt.service;
 
+import java.time.LocalDate;
+import java.time.LocalDateTime;
+import java.util.ArrayList;
+import java.util.Comparator;
+import java.util.HashMap;
+import java.util.LinkedHashMap;
+import java.util.List;
+import java.util.Locale;
+import java.util.Map;
+import java.util.Set;
+import java.util.stream.Collectors;
+
+import jakarta.transaction.Transactional;
+
+import org.springframework.http.HttpStatus;
+import org.springframework.stereotype.Service;
+import org.springframework.web.server.ResponseStatusException;
+
 import com.gh.mygreen.mygantt.dto.CreateProjectRequest;
 import com.gh.mygreen.mygantt.dto.CreateTaskRequest;
 import com.gh.mygreen.mygantt.dto.DependencyDto;
@@ -28,25 +46,10 @@ import com.gh.mygreen.mygantt.repository.MemberRepository;
 import com.gh.mygreen.mygantt.repository.ProjectSettingsRepository;
 import com.gh.mygreen.mygantt.repository.ProjectVersionRepository;
 import com.gh.mygreen.mygantt.repository.TaskRepository;
-import com.fasterxml.jackson.core.JsonProcessingException;
-import com.fasterxml.jackson.databind.ObjectMapper;
-import jakarta.transaction.Transactional;
-import lombok.RequiredArgsConstructor;
-import org.springframework.http.HttpStatus;
-import org.springframework.stereotype.Service;
-import org.springframework.web.server.ResponseStatusException;
 
-import java.time.LocalDate;
-import java.time.LocalDateTime;
-import java.util.ArrayList;
-import java.util.Comparator;
-import java.util.HashMap;
-import java.util.LinkedHashMap;
-import java.util.List;
-import java.util.Locale;
-import java.util.Map;
-import java.util.Set;
-import java.util.stream.Collectors;
+import lombok.RequiredArgsConstructor;
+import tools.jackson.core.JacksonException;
+import tools.jackson.databind.json.JsonMapper;
 
 @Service
 @Transactional
@@ -62,7 +65,7 @@ public class TaskService {
     private final MemberRepository memberRepository;
     private final ProjectSettingsRepository projectSettingsRepository;
     private final ProjectVersionRepository projectVersionRepository;
-    private final ObjectMapper objectMapper;
+    private final JsonMapper jsonMapper;
 
     public List<ProjectSummaryDto> getProjects() {
         return projectSettingsRepository.findAllByOrderByIdAsc().stream()
@@ -152,9 +155,9 @@ public class TaskService {
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Version not found"));
 
         try {
-            SaveGanttRequest snapshot = objectMapper.readValue(projectVersion.getSnapshotJson(), SaveGanttRequest.class);
+            SaveGanttRequest snapshot = jsonMapper.readValue(projectVersion.getSnapshotJson(), SaveGanttRequest.class);
             return saveGanttBoard(projectId, snapshot, "v" + version + "から復元しました。");
-        } catch (JsonProcessingException exception) {
+        } catch (JacksonException exception) {
             throw new ResponseStatusException(
                     HttpStatus.INTERNAL_SERVER_ERROR,
                     "Failed to restore version snapshot",
@@ -540,7 +543,7 @@ public class TaskService {
         );
 
         try {
-            String snapshotJson = objectMapper.writeValueAsString(snapshot);
+            String snapshotJson = jsonMapper.writeValueAsString(snapshot);
             projectVersionRepository.save(
                     ProjectVersionEntity.builder()
                             .projectId(projectId)
@@ -550,7 +553,7 @@ public class TaskService {
                             .note(versionNote)
                             .build()
             );
-        } catch (JsonProcessingException exception) {
+        } catch (JacksonException exception) {
             throw new ResponseStatusException(
                     HttpStatus.INTERNAL_SERVER_ERROR,
                     "Failed to save version snapshot",
