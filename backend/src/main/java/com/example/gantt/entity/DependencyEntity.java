@@ -6,9 +6,18 @@ import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import jakarta.persistence.Table;
+import lombok.AccessLevel;
+import lombok.AllArgsConstructor;
+import lombok.Builder;
+import lombok.Getter;
+import lombok.NoArgsConstructor;
 
 @Entity
 @Table(name = "dependencies")
+@Getter
+@Builder
+@NoArgsConstructor(access = AccessLevel.PROTECTED)
+@AllArgsConstructor(access = AccessLevel.PRIVATE)
 public class DependencyEntity {
 
     @Id
@@ -24,28 +33,4 @@ public class DependencyEntity {
     @Column(name = "to_task_id", nullable = false)
     private Long toTaskId;
 
-    protected DependencyEntity() {
-    }
-
-    public DependencyEntity(Long projectId, Long fromTaskId, Long toTaskId) {
-        this.projectId = projectId;
-        this.fromTaskId = fromTaskId;
-        this.toTaskId = toTaskId;
-    }
-
-    public Long getId() {
-        return id;
-    }
-
-    public Long getProjectId() {
-        return projectId;
-    }
-
-    public Long getFromTaskId() {
-        return fromTaskId;
-    }
-
-    public Long getToTaskId() {
-        return toTaskId;
-    }
 }

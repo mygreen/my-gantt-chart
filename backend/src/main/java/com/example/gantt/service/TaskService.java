@@ -31,6 +31,7 @@ import com.example.gantt.repository.TaskRepository;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import jakarta.transaction.Transactional;
+import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.web.server.ResponseStatusException;
@@ -49,6 +50,7 @@ import java.util.stream.Collectors;
 
 @Service
 @Transactional
+@RequiredArgsConstructor
 public class TaskService {
 
     private static final Long DEFAULT_PROJECT_ID = 1L;
@@ -61,24 +63,6 @@ public class TaskService {
     private final ProjectSettingsRepository projectSettingsRepository;
     private final ProjectVersionRepository projectVersionRepository;
     private final ObjectMapper objectMapper;
-
-    public TaskService(
-            TaskRepository taskRepository,
-            DependencyRepository dependencyRepository,
-            HolidayRepository holidayRepository,
-            MemberRepository memberRepository,
-            ProjectSettingsRepository projectSettingsRepository,
-            ProjectVersionRepository projectVersionRepository,
-            ObjectMapper objectMapper
-    ) {
-        this.taskRepository = taskRepository;
-        this.dependencyRepository = dependencyRepository;
-        this.holidayRepository = holidayRepository;
-        this.memberRepository = memberRepository;
-        this.projectSettingsRepository = projectSettingsRepository;
-        this.projectVersionRepository = projectVersionRepository;
-        this.objectMapper = objectMapper;
-    }
 
     public List<ProjectSummaryDto> getProjects() {
         return projectSettingsRepository.findAllByOrderByIdAsc().stream()
@@ -139,7 +123,11 @@ public class TaskService {
         }
 
         return holidayRepository.saveAll(holidaysByDate.values().stream()
-                        .map(holiday -> new HolidayEntity(SYSTEM_PROJECT_ID, holiday.date(), holiday.name()))
+                        .map(holiday -> HolidayEntity.builder()
+                                .projectId(SYSTEM_PROJECT_ID)
+                                .date(holiday.date())
+                                .name(holiday.name())
+                                .build())
                         .toList())
                 .stream()
                 .sorted(Comparator.comparing(HolidayEntity::getDate))
@@ -198,14 +186,14 @@ public class TaskService {
         boolean excludeNonWorkingDays = request.copyBasicSettings() && sourceSettings != null
                 && sourceSettings.isExcludeNonWorkingDays();
 
-        ProjectSettingsEntity project = projectSettingsRepository.save(new ProjectSettingsEntity(
-                nextProjectId,
-                projectName,
-                startDate,
-                endDate,
-                excludeNonWorkingDays,
-                1
-        ));
+        ProjectSettingsEntity project = projectSettingsRepository.save(ProjectSettingsEntity.builder()
+                .id(nextProjectId)
+                .projectName(projectName)
+                .projectStartDate(startDate)
+                .projectEndDate(endDate)
+                .excludeNonWorkingDays(excludeNonWorkingDays)
+                .version(1)
+                .build());
 
         if (sourceSettings != null) {
             copyProjectContents(project.getId(), sourceSettings.getId(), request);
@@ -239,18 +227,18 @@ public class TaskService {
                 .max(Integer::compareTo)
                 .orElse(-1) + 1;
 
-        TaskEntity entity = new TaskEntity(
-                projectId,
-                request.name(),
-                request.owner(),
-                request.startDate(),
-                request.endDate(),
-                request.progress(),
-                TaskStatus.valueOf(request.status().toUpperCase(Locale.ROOT)),
-                null,
-                TaskType.TASK,
-                nextOrder
-        );
+        TaskEntity entity = TaskEntity.builder()
+                .projectId(projectId)
+                .name(request.name())
+                .owner(request.owner())
+                .startDate(request.startDate())
+                .endDate(request.endDate())
+                .progress(request.progress())
+                .status(TaskStatus.valueOf(request.status().toUpperCase(Locale.ROOT)))
+                .parentTaskId(null)
+                .taskType(TaskType.TASK)
+                .displayOrder(nextOrder)
+                .build();
 
         return TaskDto.fromEntity(taskRepository.save(entity));
     }
@@ -259,14 +247,22 @@ public class TaskService {
         if (request.copyMembers()) {
             List<MemberEntity> sourceMembers = memberRepository.findAllByProjectIdOrderByDisplayOrderAscIdAsc(sourceProjectId);
             memberRepository.saveAll(sourceMembers.stream()
-                    .map(member -> new MemberEntity(targetProjectId, member.getName(), member.getDisplayOrder()))
+                    .map(member -> MemberEntity.builder()
+                            .projectId(targetProjectId)
+                            .name(member.getName())
+                            .displayOrder(member.getDisplayOrder())
+                            .build())
                     .toList());
         }
 
         if (request.copyHolidays()) {
             List<HolidayEntity> sourceHolidays = holidayRepository.findAllByProjectIdOrderByDateAsc(sourceProjectId);
             holidayRepository.saveAll(sourceHolidays.stream()
-                    .map(holiday -> new HolidayEntity(targetProjectId, holiday.getDate(), holiday.getName()))
+                    .map(holiday -> HolidayEntity.builder()
+                            .projectId(targetProjectId)
+                            .date(holiday.getDate())
+                            .name(holiday.getName())
+                            .build())
                     .toList());
         }
 
@@ -279,18 +275,18 @@ public class TaskService {
         List<TaskEntity> copiedTasks = new ArrayList<>();
 
         for (TaskEntity sourceTask : sourceTasks) {
-            TaskEntity copiedTask = taskRepository.save(new TaskEntity(
-                    targetProjectId,
-                    sourceTask.getName(),
-                    sourceTask.getOwner(),
-                    sourceTask.getStartDate(),
-                    sourceTask.getEndDate(),
-                    0,
-                    TaskStatus.TODO,
-                    null,
-                    sourceTask.getTaskType(),
-                    sourceTask.getDisplayOrder()
-            ));
+            TaskEntity copiedTask = taskRepository.save(TaskEntity.builder()
+                    .projectId(targetProjectId)
+                    .name(sourceTask.getName())
+                    .owner(sourceTask.getOwner())
+                    .startDate(sourceTask.getStartDate())
+                    .endDate(sourceTask.getEndDate())
+                    .progress(0)
+                    .status(TaskStatus.TODO)
+                    .parentTaskId(null)
+                    .taskType(sourceTask.getTaskType())
+                    .displayOrder(sourceTask.getDisplayOrder())
+                    .build());
             taskIdMapping.put(sourceTask.getId(), copiedTask.getId());
             copiedTasks.add(copiedTask);
         }
@@ -311,11 +307,11 @@ public class TaskService {
 
         List<DependencyEntity> sourceDependencies = dependencyRepository.findAllByProjectIdOrderByIdAsc(sourceProjectId);
         dependencyRepository.saveAll(sourceDependencies.stream()
-                .map(dependency -> new DependencyEntity(
-                        targetProjectId,
-                        taskIdMapping.get(dependency.getFromTaskId()),
-                        taskIdMapping.get(dependency.getToTaskId())
-                ))
+                .map(dependency -> DependencyEntity.builder()
+                        .projectId(targetProjectId)
+                        .fromTaskId(taskIdMapping.get(dependency.getFromTaskId()))
+                        .toTaskId(taskIdMapping.get(dependency.getToTaskId()))
+                        .build())
                 .filter(dependency -> dependency.getFromTaskId() != null && dependency.getToTaskId() != null)
                 .toList());
     }
@@ -332,18 +328,18 @@ public class TaskService {
         for (SaveTaskRequest taskRequest : request.tasks()) {
             TaskEntity taskEntity = taskRequest.id() != null ? existingTasks.get(taskRequest.id()) : null;
             if (taskEntity == null) {
-                taskEntity = new TaskEntity(
-                        projectId,
-                        taskRequest.name(),
-                        taskRequest.owner(),
-                        taskRequest.startDate(),
-                        normalizeTaskEndDate(taskRequest),
-                        clampProgress(taskRequest.progress()),
-                        parseTaskStatus(taskRequest.status()),
-                        null,
-                        parseTaskType(taskRequest.type()),
-                        displayOrder
-                );
+                taskEntity = TaskEntity.builder()
+                        .projectId(projectId)
+                        .name(taskRequest.name())
+                        .owner(taskRequest.owner())
+                        .startDate(taskRequest.startDate())
+                        .endDate(normalizeTaskEndDate(taskRequest))
+                        .progress(clampProgress(taskRequest.progress()))
+                        .status(parseTaskStatus(taskRequest.status()))
+                        .parentTaskId(null)
+                        .taskType(parseTaskType(taskRequest.type()))
+                        .displayOrder(displayOrder)
+                        .build();
             } else {
                 taskEntity.update(
                         projectId,
@@ -407,14 +403,22 @@ public class TaskService {
             holidaysByDate.put(holiday.date(), holiday);
         }
         holidayRepository.saveAll(holidaysByDate.values().stream()
-                .map(holiday -> new HolidayEntity(projectId, holiday.date(), holiday.name()))
+                .map(holiday -> HolidayEntity.builder()
+                        .projectId(projectId)
+                        .date(holiday.date())
+                        .name(holiday.name())
+                        .build())
                 .toList());
 
         memberRepository.deleteAllByProjectId(projectId);
         List<SaveMemberRequest> memberRequests = buildMemberRequests(request);
         List<MemberEntity> memberEntities = new ArrayList<>();
         for (int index = 0; index < memberRequests.size(); index += 1) {
-            memberEntities.add(new MemberEntity(projectId, memberRequests.get(index).name(), index));
+            memberEntities.add(MemberEntity.builder()
+                    .projectId(projectId)
+                    .name(memberRequests.get(index).name())
+                    .displayOrder(index)
+                    .build());
         }
         memberRepository.saveAll(memberEntities);
 
@@ -504,7 +508,11 @@ public class TaskService {
     ) {
         Long fromTaskId = requestTaskIdToEntityId.getOrDefault(dependency.fromTaskId(), dependency.fromTaskId());
         Long toTaskId = requestTaskIdToEntityId.getOrDefault(dependency.toTaskId(), dependency.toTaskId());
-        return new DependencyEntity(projectId, fromTaskId, toTaskId);
+        return DependencyEntity.builder()
+                .projectId(projectId)
+                .fromTaskId(fromTaskId)
+                .toTaskId(toTaskId)
+                .build();
     }
 
     private List<SaveMemberRequest> buildMemberRequests(SaveGanttRequest request) {
@@ -534,13 +542,13 @@ public class TaskService {
         try {
             String snapshotJson = objectMapper.writeValueAsString(snapshot);
             projectVersionRepository.save(
-                    new ProjectVersionEntity(
-                            projectId,
-                            response.version(),
-                            LocalDateTime.now(),
-                            snapshotJson,
-                            versionNote
-                    )
+                    ProjectVersionEntity.builder()
+                            .projectId(projectId)
+                            .version(response.version())
+                            .savedAt(LocalDateTime.now())
+                            .snapshotJson(snapshotJson)
+                            .note(versionNote)
+                            .build()
             );
         } catch (JsonProcessingException exception) {
             throw new ResponseStatusException(

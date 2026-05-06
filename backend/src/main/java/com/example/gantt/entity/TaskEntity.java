@@ -8,11 +8,20 @@ import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import jakarta.persistence.Table;
+import lombok.AccessLevel;
+import lombok.AllArgsConstructor;
+import lombok.Builder;
+import lombok.Getter;
+import lombok.NoArgsConstructor;
 
 import java.time.LocalDate;
 
 @Entity
 @Table(name = "tasks")
+@Getter
+@Builder
+@NoArgsConstructor(access = AccessLevel.PROTECTED)
+@AllArgsConstructor(access = AccessLevel.PRIVATE)
 public class TaskEntity {
 
     @Id
@@ -50,77 +59,6 @@ public class TaskEntity {
 
     @Column(name = "display_order", nullable = false)
     private int displayOrder;
-
-    protected TaskEntity() {
-    }
-
-    public TaskEntity(
-            Long projectId,
-            String name,
-            String owner,
-            LocalDate startDate,
-            LocalDate endDate,
-            int progress,
-            TaskStatus status,
-            Long parentTaskId,
-            TaskType taskType,
-            int displayOrder
-    ) {
-        this.projectId = projectId;
-        this.name = name;
-        this.owner = owner;
-        this.startDate = startDate;
-        this.endDate = endDate;
-        this.progress = progress;
-        this.status = status;
-        this.parentTaskId = parentTaskId;
-        this.taskType = taskType;
-        this.displayOrder = displayOrder;
-    }
-
-    public Long getId() {
-        return id;
-    }
-
-    public Long getProjectId() {
-        return projectId;
-    }
-
-    public String getName() {
-        return name;
-    }
-
-    public String getOwner() {
-        return owner;
-    }
-
-    public LocalDate getStartDate() {
-        return startDate;
-    }
-
-    public LocalDate getEndDate() {
-        return endDate;
-    }
-
-    public int getProgress() {
-        return progress;
-    }
-
-    public TaskStatus getStatus() {
-        return status;
-    }
-
-    public Long getParentTaskId() {
-        return parentTaskId;
-    }
-
-    public TaskType getTaskType() {
-        return taskType;
-    }
-
-    public int getDisplayOrder() {
-        return displayOrder;
-    }
 
     public void update(
             Long projectId,

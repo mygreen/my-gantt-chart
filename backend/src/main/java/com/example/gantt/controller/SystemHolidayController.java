@@ -3,6 +3,7 @@ package com.example.gantt.controller;
 import com.example.gantt.dto.HolidayDto;
 import com.example.gantt.dto.SaveHolidayRequest;
 import com.example.gantt.service.TaskService;
+import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
@@ -13,13 +14,10 @@ import java.util.List;
 
 @RestController
 @RequestMapping("/api/system/holidays")
+@RequiredArgsConstructor
 public class SystemHolidayController {
 
     private final TaskService taskService;
-
-    public SystemHolidayController(TaskService taskService) {
-        this.taskService = taskService;
-    }
 
     @GetMapping
     public List<HolidayDto> getSystemHolidays() {

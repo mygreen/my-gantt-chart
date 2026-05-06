@@ -6,11 +6,20 @@ import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import jakarta.persistence.Table;
+import lombok.AccessLevel;
+import lombok.AllArgsConstructor;
+import lombok.Builder;
+import lombok.Getter;
+import lombok.NoArgsConstructor;
 
 import java.time.LocalDate;
 
 @Entity
 @Table(name = "holidays")
+@Getter
+@Builder
+@NoArgsConstructor(access = AccessLevel.PROTECTED)
+@AllArgsConstructor(access = AccessLevel.PRIVATE)
 public class HolidayEntity {
 
     @Id
@@ -26,28 +35,4 @@ public class HolidayEntity {
     @Column(nullable = false)
     private String name;
 
-    protected HolidayEntity() {
-    }
-
-    public HolidayEntity(Long projectId, LocalDate date, String name) {
-        this.projectId = projectId;
-        this.date = date;
-        this.name = name;
-    }
-
-    public Long getId() {
-        return id;
-    }
-
-    public Long getProjectId() {
-        return projectId;
-    }
-
-    public LocalDate getDate() {
-        return date;
-    }
-
-    public String getName() {
-        return name;
-    }
 }

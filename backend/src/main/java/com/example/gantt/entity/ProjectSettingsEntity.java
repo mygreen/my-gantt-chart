@@ -4,11 +4,20 @@ import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.Id;
 import jakarta.persistence.Table;
+import lombok.AccessLevel;
+import lombok.AllArgsConstructor;
+import lombok.Builder;
+import lombok.Getter;
+import lombok.NoArgsConstructor;
 
 import java.time.LocalDate;
 
 @Entity
 @Table(name = "project_settings")
+@Getter
+@Builder
+@NoArgsConstructor(access = AccessLevel.PROTECTED)
+@AllArgsConstructor(access = AccessLevel.PRIVATE)
 public class ProjectSettingsEntity {
 
     @Id
@@ -28,49 +37,6 @@ public class ProjectSettingsEntity {
 
     @Column(name = "version", nullable = false)
     private int version;
-
-    protected ProjectSettingsEntity() {
-    }
-
-    public ProjectSettingsEntity(
-            Long id,
-            String projectName,
-            LocalDate projectStartDate,
-            LocalDate projectEndDate,
-            boolean excludeNonWorkingDays,
-            int version
-    ) {
-        this.id = id;
-        this.projectName = projectName;
-        this.projectStartDate = projectStartDate;
-        this.projectEndDate = projectEndDate;
-        this.excludeNonWorkingDays = excludeNonWorkingDays;
-        this.version = version;
-    }
-
-    public Long getId() {
-        return id;
-    }
-
-    public String getProjectName() {
-        return projectName;
-    }
-
-    public LocalDate getProjectStartDate() {
-        return projectStartDate;
-    }
-
-    public LocalDate getProjectEndDate() {
-        return projectEndDate;
-    }
-
-    public boolean isExcludeNonWorkingDays() {
-        return excludeNonWorkingDays;
-    }
-
-    public int getVersion() {
-        return version;
-    }
 
     public void update(
             String projectName,

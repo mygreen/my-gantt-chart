@@ -7,11 +7,20 @@ import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import jakarta.persistence.Lob;
 import jakarta.persistence.Table;
+import lombok.AccessLevel;
+import lombok.AllArgsConstructor;
+import lombok.Builder;
+import lombok.Getter;
+import lombok.NoArgsConstructor;
 
 import java.time.LocalDateTime;
 
 @Entity
 @Table(name = "project_versions")
+@Getter
+@Builder
+@NoArgsConstructor(access = AccessLevel.PROTECTED)
+@AllArgsConstructor(access = AccessLevel.PRIVATE)
 public class ProjectVersionEntity {
 
     @Id
@@ -34,44 +43,4 @@ public class ProjectVersionEntity {
     @Column(name = "note")
     private String note;
 
-    protected ProjectVersionEntity() {
-    }
-
-    public ProjectVersionEntity(
-            Long projectId,
-            int version,
-            LocalDateTime savedAt,
-            String snapshotJson,
-            String note
-    ) {
-        this.projectId = projectId;
-        this.version = version;
-        this.savedAt = savedAt;
-        this.snapshotJson = snapshotJson;
-        this.note = note;
-    }
-
-    public Long getId() {
-        return id;
-    }
-
-    public Long getProjectId() {
-        return projectId;
-    }
-
-    public int getVersion() {
-        return version;
-    }
-
-    public LocalDateTime getSavedAt() {
-        return savedAt;
-    }
-
-    public String getSnapshotJson() {
-        return snapshotJson;
-    }
-
-    public String getNote() {
-        return note;
-    }
 }

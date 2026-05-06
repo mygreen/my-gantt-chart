@@ -6,9 +6,18 @@ import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import jakarta.persistence.Table;
+import lombok.AccessLevel;
+import lombok.AllArgsConstructor;
+import lombok.Builder;
+import lombok.Getter;
+import lombok.NoArgsConstructor;
 
 @Entity
 @Table(name = "members")
+@Getter
+@Builder
+@NoArgsConstructor(access = AccessLevel.PROTECTED)
+@AllArgsConstructor(access = AccessLevel.PRIVATE)
 public class MemberEntity {
 
     @Id
@@ -24,28 +33,4 @@ public class MemberEntity {
     @Column(name = "display_order", nullable = false)
     private int displayOrder;
 
-    protected MemberEntity() {
-    }
-
-    public MemberEntity(Long projectId, String name, int displayOrder) {
-        this.projectId = projectId;
-        this.name = name;
-        this.displayOrder = displayOrder;
-    }
-
-    public Long getId() {
-        return id;
-    }
-
-    public Long getProjectId() {
-        return projectId;
-    }
-
-    public String getName() {
-        return name;
-    }
-
-    public int getDisplayOrder() {
-        return displayOrder;
-    }
 }

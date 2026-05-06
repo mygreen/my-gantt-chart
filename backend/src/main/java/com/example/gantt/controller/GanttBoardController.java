@@ -6,6 +6,7 @@ import com.example.gantt.dto.SaveGanttRequest;
 import com.example.gantt.dto.TaskDto;
 import com.example.gantt.service.TaskService;
 import jakarta.validation.Valid;
+import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -18,15 +19,12 @@ import org.springframework.web.bind.annotation.RestController;
 
 @RestController
 @RequestMapping("/api/tasks")
+@RequiredArgsConstructor
 public class GanttBoardController {
 
     private static final Long DEFAULT_PROJECT_ID = 1L;
 
     private final TaskService taskService;
-
-    public GanttBoardController(TaskService taskService) {
-        this.taskService = taskService;
-    }
 
     @GetMapping
     public GanttResponseDto getTasks(@RequestParam(required = false) Long projectId) {
