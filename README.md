@@ -5,6 +5,8 @@
 React + Spring Boot + H2 Database による
 高性能ガントチャートWebアプリケーション。
 
+![screenshot](docs/sample.png)
+
 ---
 
 # Features
@@ -39,7 +41,7 @@ React + Spring Boot + H2 Database による
 
 | Category   | Technology      |
 | ---------- | --------------- |
-| Framework  | Spring Boot 3   |
+| Framework  | Spring Boot 4   |
 | Language   | Java 21         |
 | Database   | H2 Database     |
 | ORM        | Spring Data JPA |

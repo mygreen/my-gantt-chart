@@ -7,7 +7,7 @@
 このSkillは、以下の技術構成で高機能ガントチャートWebアプリを実装するための開発ガイドラインを定義する。
 
 * Frontend: React + TypeScript
-* Backend: Spring Boot 3
+* Backend: Spring Boot 4
 * Database: H2 Database
 * Rendering: HTML(div) + SVG overlay
 * State Management: Zustand
@@ -154,7 +154,7 @@ type GanttStore = {
 
 | Purpose    | Technology         |
 | ---------- | ------------------ |
-| Framework  | Spring Boot 3      |
+| Framework  | Spring Boot 4      |
 | Language   | Java 21            |
 | ORM        | Spring Data JPA    |
 | Database   | H2 Database        |
