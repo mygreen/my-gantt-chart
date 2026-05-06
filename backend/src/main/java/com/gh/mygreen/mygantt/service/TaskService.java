@@ -401,6 +401,7 @@ public class TaskService {
                 .toList());
 
         holidayRepository.deleteAllByProjectId(projectId);
+        holidayRepository.flush();
         Map<LocalDate, SaveHolidayRequest> holidaysByDate = new LinkedHashMap<>();
         for (SaveHolidayRequest holiday : request.holidays()) {
             holidaysByDate.put(holiday.date(), holiday);
