@@ -738,7 +738,6 @@ export function App() {
                           className="h-4 w-4 rounded border-slate-300 text-cyan-600 focus:ring-cyan-500"
                         />
                         <span className="inline-flex items-center gap-2">
-                          <CalendarDays className="h-4 w-4 text-slate-500" />
                           <span className="text-slate-500">基準日</span>
                         </span>
                       </label>
