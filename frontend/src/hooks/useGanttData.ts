@@ -23,6 +23,7 @@ export function useGanttData() {
   const showOwnerInSidebar = useGanttStore((state) => state.showOwnerInSidebar);
   const showStartDateInSidebar = useGanttStore((state) => state.showStartDateInSidebar);
   const showEndDateInSidebar = useGanttStore((state) => state.showEndDateInSidebar);
+  const showProgressInSidebar = useGanttStore((state) => state.showProgressInSidebar);
 
   const sidebarWidth = useMemo(() => {
     let width = 250;
@@ -35,8 +36,11 @@ export function useGanttData() {
     if (showEndDateInSidebar) {
       width += 92;
     }
+    if (showProgressInSidebar) {
+      width += 68;
+    }
     return width;
-  }, [showEndDateInSidebar, showOwnerInSidebar, showStartDateInSidebar]);
+  }, [showEndDateInSidebar, showOwnerInSidebar, showProgressInSidebar, showStartDateInSidebar]);
 
   const viewport = useMemo(
     () => ({
