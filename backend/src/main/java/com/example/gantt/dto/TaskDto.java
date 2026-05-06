@@ -1,7 +1,5 @@
 package com.example.gantt.dto;
 
-import com.example.gantt.entity.TaskStatus;
-
 import java.time.LocalDate;
 
 public record TaskDto(
