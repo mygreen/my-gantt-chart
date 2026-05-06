@@ -11,6 +11,7 @@ export function useGanttData() {
   const holidays = useGanttStore((state) => state.holidays);
   const baseViewport = useGanttStore((state) => state.viewport);
   const timelineScale = useGanttStore((state) => state.timelineScale);
+  const showBaseline = useGanttStore((state) => state.showBaseline);
   const baselineDate = useGanttStore((state) => state.baselineDate);
   const projectStartDate = useGanttStore((state) => state.projectStartDate);
   const projectEndDate = useGanttStore((state) => state.projectEndDate);
@@ -71,11 +72,11 @@ export function useGanttData() {
         tasks,
         holidays,
         timelineScale,
-        baselineDate ? [baselineDate] : [],
+        showBaseline && baselineDate ? [baselineDate] : [],
         projectStartDate,
         projectEndDate,
       ),
-    [tasks, holidays, timelineScale, baselineDate, projectStartDate, projectEndDate],
+    [tasks, holidays, timelineScale, showBaseline, baselineDate, projectStartDate, projectEndDate],
   );
   const layouts = useMemo(
     () => buildTaskLayouts(visibleTasks, timelineCells, viewport, milestoneTasks.length > 0 ? 1 : 0),
@@ -95,6 +96,7 @@ export function useGanttData() {
     holidays,
     viewport,
     timelineScale,
+    showBaseline,
     baselineDate,
     interactionMode,
     pendingDependencyFromTaskId,

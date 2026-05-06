@@ -51,6 +51,7 @@ export function GanttBoard() {
     holidays,
     viewport,
     timelineScale,
+    showBaseline,
     baselineDate,
     interactionMode,
     pendingDependencyFromTaskId,
@@ -306,21 +307,23 @@ export function GanttBoard() {
             selectedTaskId={selectedTaskId}
             onTaskContextMenu={handleTaskContextMenu}
           />
-          <InazumaLayer
-            tasks={visibleTasks}
-            layouts={layouts}
-            timelineCells={timelineCells}
-            cellWidth={viewport.dayWidth}
-            baselineDate={baselineDate}
-            holidays={holidays}
-            excludeNonWorkingDays={excludeNonWorkingDays}
-            width={boardWidth}
-            height={boardHeight}
-            topOffset={inazumaTopOffset}
-            viewportTop={rawScrollTop}
-            viewportLeft={scrollLeft}
-            viewportWidth={visibleBoardWidth}
-          />
+          {showBaseline && baselineDate ? (
+            <InazumaLayer
+              tasks={visibleTasks}
+              layouts={layouts}
+              timelineCells={timelineCells}
+              cellWidth={viewport.dayWidth}
+              baselineDate={baselineDate}
+              holidays={holidays}
+              excludeNonWorkingDays={excludeNonWorkingDays}
+              width={boardWidth}
+              height={boardHeight}
+              topOffset={inazumaTopOffset}
+              viewportTop={rawScrollTop}
+              viewportLeft={scrollLeft}
+              viewportWidth={visibleBoardWidth}
+            />
+          ) : null}
         </div>
       </div>
 

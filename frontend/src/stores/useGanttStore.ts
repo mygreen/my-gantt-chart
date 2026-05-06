@@ -57,6 +57,19 @@ type PersistedState = {
   projectHolidays: Holiday[];
 };
 
+type UiPreferences = {
+  showOwnerInSidebar: boolean;
+  showStartDateInSidebar: boolean;
+  showEndDateInSidebar: boolean;
+  showProgressInSidebar: boolean;
+  showBaseline: boolean;
+  baselineDate: string;
+};
+
+type StoredUiPreferences = {
+  byProject: Record<string, UiPreferences>;
+};
+
 type GanttState = {
   selectedProjectId: number;
   projects: ProjectSummary[];
@@ -76,6 +89,7 @@ type GanttState = {
   showStartDateInSidebar: boolean;
   showEndDateInSidebar: boolean;
   showProgressInSidebar: boolean;
+  showBaseline: boolean;
   showAllParentTaskOptions: boolean;
   excludeNonWorkingDays: boolean;
   timelineScale: TimelineScale;
@@ -115,6 +129,7 @@ type GanttState = {
   toggleSidebarStartDateVisibility: () => void;
   toggleSidebarEndDateVisibility: () => void;
   toggleSidebarProgressVisibility: () => void;
+  setBaselineEnabled: (enabled: boolean) => void;
   toggleAllParentTaskOptionsVisibility: () => void;
   toggleNonWorkingDayExclusion: () => void;
   setTimelineScale: (scale: TimelineScale) => void;
@@ -287,6 +302,99 @@ function buildPersistedState(source: DirtyComputableState): SaveGanttPayload {
   };
 }
 
+const UI_PREFERENCES_STORAGE_KEY = "mygantt.uiPreferences";
+
+function createDefaultUiPreferences(): UiPreferences {
+  return {
+    showOwnerInSidebar: true,
+    showStartDateInSidebar: false,
+    showEndDateInSidebar: false,
+    showProgressInSidebar: false,
+    showBaseline: false,
+    baselineDate: "",
+  };
+}
+
+function loadStoredUiPreferences(): StoredUiPreferences {
+  if (typeof window === "undefined") {
+    return { byProject: {} };
+  }
+
+  try {
+    const raw = window.localStorage.getItem(UI_PREFERENCES_STORAGE_KEY);
+    if (!raw) {
+      return { byProject: {} };
+    }
+
+    const parsed = JSON.parse(raw) as StoredUiPreferences;
+    return {
+      byProject: parsed?.byProject ?? {},
+    };
+  } catch {
+    return { byProject: {} };
+  }
+}
+
+function loadUiPreferences(projectId: number): UiPreferences {
+  const stored = loadStoredUiPreferences();
+  return {
+    ...createDefaultUiPreferences(),
+    ...(stored.byProject[String(projectId)] ?? {}),
+  };
+}
+
+function saveUiPreferences(projectId: number, preferences: UiPreferences) {
+  if (typeof window === "undefined") {
+    return;
+  }
+
+  const stored = loadStoredUiPreferences();
+  stored.byProject[String(projectId)] = preferences;
+  window.localStorage.setItem(UI_PREFERENCES_STORAGE_KEY, JSON.stringify(stored));
+}
+
+function buildUiPreferences(state: Pick<
+  GanttState,
+  | "showOwnerInSidebar"
+  | "showStartDateInSidebar"
+  | "showEndDateInSidebar"
+  | "showProgressInSidebar"
+  | "showBaseline"
+  | "baselineDate"
+>) {
+  return {
+    showOwnerInSidebar: state.showOwnerInSidebar,
+    showStartDateInSidebar: state.showStartDateInSidebar,
+    showEndDateInSidebar: state.showEndDateInSidebar,
+    showProgressInSidebar: state.showProgressInSidebar,
+    showBaseline: state.showBaseline,
+    baselineDate: state.baselineDate,
+  } satisfies UiPreferences;
+}
+
+function persistUiPreferences(
+  projectId: number,
+  state: Pick<
+    GanttState,
+    | "showOwnerInSidebar"
+    | "showStartDateInSidebar"
+    | "showEndDateInSidebar"
+    | "showProgressInSidebar"
+    | "showBaseline"
+    | "baselineDate"
+  >,
+) {
+  saveUiPreferences(projectId, buildUiPreferences(state));
+}
+
+function getTodayDateString() {
+  const now = new Date();
+  const year = now.getFullYear();
+  const month = String(now.getMonth() + 1).padStart(2, "0");
+  const day = String(now.getDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
+}
+
 function serializePersistedState(source: SaveGanttPayload) {
   return JSON.stringify(source);
 }
@@ -440,15 +548,13 @@ function buildLoadedStateUpdate(
   };
 }
 
-const initialToday = new Date().toISOString().slice(0, 10);
-
 export const useGanttStore = create<GanttState>((set, get) => ({
   projectName: "チーム進行ガントチャート",
   selectedProjectId: 1,
   projects: [],
   projectVersion: 1,
-  projectStartDate: initialToday,
-  projectEndDate: initialToday,
+  projectStartDate: getTodayDateString(),
+  projectEndDate: getTodayDateString(),
   members: [],
   tasks: [],
   dependencies: [],
@@ -461,10 +567,11 @@ export const useGanttStore = create<GanttState>((set, get) => ({
   showStartDateInSidebar: false,
   showEndDateInSidebar: false,
   showProgressInSidebar: false,
+  showBaseline: false,
   showAllParentTaskOptions: false,
   excludeNonWorkingDays: false,
   timelineScale: "day",
-  baselineDate: initialToday,
+  baselineDate: "",
   interactionMode: "schedule",
   pendingDependencyFromTaskId: null,
   selectedTaskId: null,
@@ -490,27 +597,56 @@ export const useGanttStore = create<GanttState>((set, get) => ({
   },
 
   toggleSidebarOwnerVisibility: () => {
-    set((state) => ({
-      showOwnerInSidebar: !state.showOwnerInSidebar,
-    }));
+    set((state) => {
+      const next = {
+        showOwnerInSidebar: !state.showOwnerInSidebar,
+      };
+      persistUiPreferences(state.selectedProjectId, { ...state, ...next });
+      return next;
+    });
   },
 
   toggleSidebarStartDateVisibility: () => {
-    set((state) => ({
-      showStartDateInSidebar: !state.showStartDateInSidebar,
-    }));
+    set((state) => {
+      const next = {
+        showStartDateInSidebar: !state.showStartDateInSidebar,
+      };
+      persistUiPreferences(state.selectedProjectId, { ...state, ...next });
+      return next;
+    });
   },
 
   toggleSidebarEndDateVisibility: () => {
-    set((state) => ({
-      showEndDateInSidebar: !state.showEndDateInSidebar,
-    }));
+    set((state) => {
+      const next = {
+        showEndDateInSidebar: !state.showEndDateInSidebar,
+      };
+      persistUiPreferences(state.selectedProjectId, { ...state, ...next });
+      return next;
+    });
   },
 
   toggleSidebarProgressVisibility: () => {
-    set((state) => ({
-      showProgressInSidebar: !state.showProgressInSidebar,
-    }));
+    set((state) => {
+      const next = {
+        showProgressInSidebar: !state.showProgressInSidebar,
+      };
+      persistUiPreferences(state.selectedProjectId, { ...state, ...next });
+      return next;
+    });
+  },
+
+  setBaselineEnabled: (enabled) => {
+    set((state) => {
+      const nextBaselineDate =
+        enabled && !state.baselineDate ? getTodayDateString() : state.baselineDate;
+      const next = {
+        showBaseline: enabled,
+        baselineDate: nextBaselineDate,
+      };
+      persistUiPreferences(state.selectedProjectId, { ...state, ...next });
+      return next;
+    });
   },
 
   toggleAllParentTaskOptionsVisibility: () => {
@@ -533,7 +669,11 @@ export const useGanttStore = create<GanttState>((set, get) => ({
   },
 
   setBaselineDate: (baselineDate) => {
-    set({ baselineDate });
+    set((state) => {
+      const next = { baselineDate };
+      persistUiPreferences(state.selectedProjectId, { ...state, ...next });
+      return next;
+    });
   },
 
   setInteractionMode: (mode) => {
@@ -1218,6 +1358,7 @@ export const useGanttStore = create<GanttState>((set, get) => ({
         fetchSystemHolidays(),
       ]);
       const persisted = normalizeLoadedState(data);
+      const uiPreferences = loadUiPreferences(targetProjectId);
 
       set({
         ...buildLoadedStateUpdate(
@@ -1230,7 +1371,12 @@ export const useGanttStore = create<GanttState>((set, get) => ({
         projects,
         systemHolidays,
         versionHistory,
-        baselineDate: persisted.projectStartDate,
+        showOwnerInSidebar: uiPreferences.showOwnerInSidebar,
+        showStartDateInSidebar: uiPreferences.showStartDateInSidebar,
+        showEndDateInSidebar: uiPreferences.showEndDateInSidebar,
+        showProgressInSidebar: uiPreferences.showProgressInSidebar,
+        showBaseline: uiPreferences.showBaseline,
+        baselineDate: uiPreferences.baselineDate,
       });
     } catch (error) {
       set({
