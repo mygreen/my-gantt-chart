@@ -1,4 +1,4 @@
-﻿package com.gh.mygreen.mygantt.repository;
+package com.gh.mygreen.mygantt.repository;
 
 import com.gh.mygreen.mygantt.entity.TaskEntity;
 import org.springframework.data.jpa.repository.JpaRepository;

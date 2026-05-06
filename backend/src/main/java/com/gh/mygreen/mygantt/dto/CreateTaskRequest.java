@@ -1,4 +1,4 @@
-﻿package com.gh.mygreen.mygantt.dto;
+package com.gh.mygreen.mygantt.dto;
 
 import jakarta.validation.constraints.Max;
 import jakarta.validation.constraints.Min;

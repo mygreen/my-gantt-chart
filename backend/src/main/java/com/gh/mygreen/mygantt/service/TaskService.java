@@ -1,4 +1,4 @@
-﻿package com.gh.mygreen.mygantt.service;
+package com.gh.mygreen.mygantt.service;
 
 import com.gh.mygreen.mygantt.dto.CreateProjectRequest;
 import com.gh.mygreen.mygantt.dto.CreateTaskRequest;

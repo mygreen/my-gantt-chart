@@ -1,4 +1,4 @@
-﻿package com.gh.mygreen.mygantt.entity;
+package com.gh.mygreen.mygantt.entity;
 
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;

@@ -1,4 +1,4 @@
-﻿package com.gh.mygreen.mygantt;
+package com.gh.mygreen.mygantt;
 
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;

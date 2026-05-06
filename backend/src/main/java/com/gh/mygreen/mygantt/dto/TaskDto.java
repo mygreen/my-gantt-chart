@@ -1,4 +1,4 @@
-﻿package com.gh.mygreen.mygantt.dto;
+package com.gh.mygreen.mygantt.dto;
 
 import java.time.LocalDate;
 

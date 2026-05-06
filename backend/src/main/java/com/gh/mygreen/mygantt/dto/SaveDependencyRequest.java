@@ -1,4 +1,4 @@
-﻿package com.gh.mygreen.mygantt.dto;
+package com.gh.mygreen.mygantt.dto;
 
 public record SaveDependencyRequest(
         Long id,

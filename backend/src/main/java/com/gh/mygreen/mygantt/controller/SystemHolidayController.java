@@ -1,4 +1,4 @@
-﻿package com.gh.mygreen.mygantt.controller;
+package com.gh.mygreen.mygantt.controller;
 
 import com.gh.mygreen.mygantt.dto.HolidayDto;
 import com.gh.mygreen.mygantt.dto.SaveHolidayRequest;

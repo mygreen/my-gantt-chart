@@ -1,4 +1,4 @@
-﻿package com.gh.mygreen.mygantt.entity;
+package com.gh.mygreen.mygantt.entity;
 
 public enum TaskStatus {
     TODO,
