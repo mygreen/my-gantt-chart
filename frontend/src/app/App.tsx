@@ -181,6 +181,7 @@ export function App() {
   const showStartDateInSidebar = useGanttStore((state) => state.showStartDateInSidebar);
   const showEndDateInSidebar = useGanttStore((state) => state.showEndDateInSidebar);
   const showProgressInSidebar = useGanttStore((state) => state.showProgressInSidebar);
+  const showBaseline = useGanttStore((state) => state.showBaseline);
   const showAllParentTaskOptions = useGanttStore((state) => state.showAllParentTaskOptions);
   const excludeNonWorkingDays = useGanttStore((state) => state.excludeNonWorkingDays);
   const timelineScale = useGanttStore((state) => state.timelineScale);
@@ -205,6 +206,7 @@ export function App() {
     (state) => state.toggleNonWorkingDayExclusion,
   );
   const setTimelineScale = useGanttStore((state) => state.setTimelineScale);
+  const setBaselineEnabled = useGanttStore((state) => state.setBaselineEnabled);
   const setBaselineDate = useGanttStore((state) => state.setBaselineDate);
   const updateTaskDetails = useGanttStore((state) => state.updateTaskDetails);
   const updateTaskSchedule = useGanttStore((state) => state.updateTaskSchedule);
@@ -727,16 +729,30 @@ export function App() {
                       </button>
                     </div>
 
-                    <label className="inline-flex h-9 items-center gap-2 rounded-md border border-slate-200 bg-white px-3 text-sm text-slate-700">
-                      <CalendarDays className="h-4 w-4 text-slate-500" />
-                      <span className="text-slate-500">基準日</span>
+                    <div className="inline-flex h-9 items-center gap-3 rounded-md border border-slate-200 bg-white px-3 text-sm text-slate-700">
+                      <label className="inline-flex items-center gap-2">
+                        <input
+                          type="checkbox"
+                          checked={showBaseline}
+                          onChange={(event) => setBaselineEnabled(event.target.checked)}
+                          className="h-4 w-4 rounded border-slate-300 text-cyan-600 focus:ring-cyan-500"
+                        />
+                        <span className="inline-flex items-center gap-2">
+                          <CalendarDays className="h-4 w-4 text-slate-500" />
+                          <span className="text-slate-500">基準日</span>
+                        </span>
+                      </label>
                       <input
                         type="date"
                         value={baselineDate}
+                        disabled={!showBaseline}
                         onChange={(event) => setBaselineDate(event.target.value)}
-                        className="border-none bg-transparent text-sm text-slate-900 outline-none"
+                        className={cn(
+                          "border-none bg-transparent text-sm outline-none",
+                          showBaseline ? "text-slate-900" : "cursor-not-allowed text-slate-400",
+                        )}
                       />
-                    </label>
+                    </div>
 
                     
                   </div>

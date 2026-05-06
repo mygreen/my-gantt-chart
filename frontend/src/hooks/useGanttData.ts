@@ -11,6 +11,7 @@ export function useGanttData() {
   const holidays = useGanttStore((state) => state.holidays);
   const baseViewport = useGanttStore((state) => state.viewport);
   const timelineScale = useGanttStore((state) => state.timelineScale);
+  const showBaseline = useGanttStore((state) => state.showBaseline);
   const baselineDate = useGanttStore((state) => state.baselineDate);
   const projectStartDate = useGanttStore((state) => state.projectStartDate);
   const projectEndDate = useGanttStore((state) => state.projectEndDate);
@@ -22,6 +23,7 @@ export function useGanttData() {
   const showOwnerInSidebar = useGanttStore((state) => state.showOwnerInSidebar);
   const showStartDateInSidebar = useGanttStore((state) => state.showStartDateInSidebar);
   const showEndDateInSidebar = useGanttStore((state) => state.showEndDateInSidebar);
+  const showProgressInSidebar = useGanttStore((state) => state.showProgressInSidebar);
 
   const sidebarWidth = useMemo(() => {
     let width = 250;
@@ -34,8 +36,11 @@ export function useGanttData() {
     if (showEndDateInSidebar) {
       width += 92;
     }
+    if (showProgressInSidebar) {
+      width += 68;
+    }
     return width;
-  }, [showEndDateInSidebar, showOwnerInSidebar, showStartDateInSidebar]);
+  }, [showEndDateInSidebar, showOwnerInSidebar, showProgressInSidebar, showStartDateInSidebar]);
 
   const viewport = useMemo(
     () => ({
@@ -71,11 +76,11 @@ export function useGanttData() {
         tasks,
         holidays,
         timelineScale,
-        baselineDate ? [baselineDate] : [],
+        showBaseline && baselineDate ? [baselineDate] : [],
         projectStartDate,
         projectEndDate,
       ),
-    [tasks, holidays, timelineScale, baselineDate, projectStartDate, projectEndDate],
+    [tasks, holidays, timelineScale, showBaseline, baselineDate, projectStartDate, projectEndDate],
   );
   const layouts = useMemo(
     () => buildTaskLayouts(visibleTasks, timelineCells, viewport, milestoneTasks.length > 0 ? 1 : 0),
@@ -95,6 +100,7 @@ export function useGanttData() {
     holidays,
     viewport,
     timelineScale,
+    showBaseline,
     baselineDate,
     interactionMode,
     pendingDependencyFromTaskId,
