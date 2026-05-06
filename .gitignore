@@ -17,6 +17,7 @@ frontend/*.tsbuildinfo
 
 # Backend / Gradle
 backend/.gradle/
+backend/.gradle-user-home/
 backend/build/
 backend/bin/
 
