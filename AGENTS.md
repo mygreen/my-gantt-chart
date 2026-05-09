@@ -68,7 +68,7 @@
 ### 変更前に確認すること
 
 * `README.md`
-* `.ai/SKILLS.md`
+* `SKILLS.md`
 * 変更対象に関連する既存ファイル
 
 ### 実装時の原則
@@ -124,4 +124,4 @@
 ## 参照
 
 * [`README.md`](D:/home/eclipse-workspaces/workspace-sample-gannt-chart/project-sample-gannt-chart/README.md)
-* [`.ai/SKILLS.md`](D:/home/eclipse-workspaces/workspace-sample-gannt-chart/project-sample-gannt-chart/.ai/SKILLS.md)
+* [`SKILLS.md`](D:/home/eclipse-workspaces/workspace-sample-gannt-chart/project-sample-gannt-chart/SKILLS.md)
