@@ -44,3 +44,8 @@ tasks.withType(Javadoc).configureEach {
     options.encoding = 'UTF-8'
     options.charSet = 'UTF-8'
 }
+
+jar {
+    // plain.jar を生成しないようにする
+    enabled = false
+}
