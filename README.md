@@ -7,6 +7,12 @@ React + Spring Boot + H2 Database による
 
 ![screenshot](docs/sample.png)
 
+# Docker run
+
+```
+docker run -d -p 8080:8080 mygreen/my-gantt-chart
+```
+
 ---
 
 # Features
