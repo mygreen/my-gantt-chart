@@ -81,7 +81,7 @@ function buildSidebarWidth(columns: ExportColumns) {
   const startWidth = columns.startDate ? 88 : 0;
   const endWidth = columns.endDate ? 88 : 0;
   const progressWidth = columns.progress ? 64 : 0;
-  const effortWidth = 80;
+  const effortWidth = 92;
   const statusWidth = 12;
   const gap = 8;
   const rowPadding = 24;
@@ -107,7 +107,7 @@ function buildSidebarColumnMetrics(sidebarWidth: number, columns: ExportColumns)
   const startWidth = columns.startDate ? 88 : 0;
   const endWidth = columns.endDate ? 88 : 0;
   const progressWidth = columns.progress ? 64 : 0;
-  const effortWidth = 80;
+  const effortWidth = 92;
   const statusWidth = 12;
   const gap = 8;
   const rowPadding = 24;
@@ -444,6 +444,7 @@ export function exportGanttAsSvg(options: GanttSvgExportOptions) {
   const taskAreaHeight = exportTasks.length * viewport.rowHeight;
   const totalHeight = Math.max(taskAreaTop + taskAreaHeight + 24, 260);
   const totalWidth = timelineOriginX + timelineWidth;
+  const milestoneClipHeight = Math.max(milestoneRowHeight + 40, viewport.rowHeight);
 
   const taskLayouts = buildTaskLayouts(exportTasks, timelineCells, viewport, 0);
   const milestoneLayouts = buildTaskLayouts(exportMilestones, timelineCells, viewport, 0);
@@ -485,6 +486,13 @@ export function exportGanttAsSvg(options: GanttSvgExportOptions) {
     `<defs>`,
     buildSvgClipPath("sidebar-clip", 0, 0, viewport.sidebarWidth, totalHeight),
     buildSvgClipPath("timeline-task-clip", timelineOriginX, taskAreaTop, timelineWidth, totalHeight - taskAreaTop),
+    buildSvgClipPath(
+      "timeline-milestone-clip",
+      timelineOriginX,
+      headerHeight,
+      timelineWidth,
+      milestoneClipHeight,
+    ),
     `</defs>`,
   );
 
@@ -560,9 +568,11 @@ export function exportGanttAsSvg(options: GanttSvgExportOptions) {
       const offset = milestoneOffsets.get(index) ?? { x: 0, y: 0 };
       const labelX = timelineOriginX + Math.max(4, layout.x + offset.x);
       const labelY = headerHeight + milestoneLaneTop + offset.y;
+      const labelText = `▼ ${truncateLabel(task.name, 12)}`;
+      const labelWidth = Math.max(96, Math.min(220, labelText.length * 9 + 18));
       svgParts.push(
-        `<g transform="translate(${labelX}, ${labelY})" clip-path="url(#timeline-task-clip)">`,
-        `<rect width="110" height="26" rx="6" fill="#fffbeb" stroke="#7dd3fc" stroke-width="1.5"/>`,
+        `<g transform="translate(${labelX}, ${labelY})">`,
+        `<rect width="${labelWidth}" height="26" rx="6" fill="#fffbeb" stroke="#7dd3fc" stroke-width="1.5"/>`,
         `<text x="9" y="17" font-size="11" font-weight="700" fill="#92400e">▼ ${escapeXml(truncateLabel(task.name, 12))}</text>`,
         `</g>`,
       );
@@ -609,7 +619,7 @@ export function exportGanttAsSvg(options: GanttSvgExportOptions) {
     }
 
     svgParts.push(
-      `<text x="${sidebarColumns.effort.x + sidebarColumns.effort.width - 12}" y="${rowY + 29}" text-anchor="end" font-size="12" fill="#64748b">${getTaskEffortInDays(task, holidays, excludeNonWorkingDays)}日</text>`,
+      `<text x="${sidebarColumns.effort.x + sidebarColumns.effort.width - 20}" y="${rowY + 29}" text-anchor="end" font-size="12" fill="#64748b">${getTaskEffortInDays(task, holidays, excludeNonWorkingDays)}日</text>`,
       `<circle cx="${sidebarColumns.status.x + sidebarColumns.status.width / 2}" cy="${rowY + viewport.rowHeight / 2}" r="4" fill="${task.status === "done" ? "#22c55e" : task.status === "blocked" ? "#475569" : "#06b6d4"}"/>`,
       `</g>`,
       `<line x1="${timelineOriginX}" y1="${rowY}" x2="${timelineOriginX + timelineWidth}" y2="${rowY}" stroke="#dbeafe"/>`,
@@ -655,8 +665,8 @@ export function exportGanttAsSvg(options: GanttSvgExportOptions) {
     const route = getDependencyRoute(fromLayout, toLayout);
     svgParts.push(
       `<g transform="translate(${timelineOriginX}, ${taskAreaTop})">`,
-      `<path d="${route.path}" fill="none" stroke="#94a3b8" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/>`,
-      `<polygon points="${route.arrowPoints}" fill="#94a3b8"/>`,
+      `<path d="${route.path}" fill="none" stroke="#64748b" stroke-width="2.25" stroke-linejoin="round" stroke-linecap="round"/>`,
+      `<polygon points="${route.arrowPoints}" fill="#64748b"/>`,
       `</g>`,
     );
   });
