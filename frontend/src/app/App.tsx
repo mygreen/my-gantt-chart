@@ -70,6 +70,46 @@ const systemViews: Array<{
   { id: "systemHoliday", label: "祝日設定", icon: CalendarDays },
 ];
 
+const SVG_EXPORT_PERIOD_STORAGE_KEY = "mygantt.svgExportPeriod";
+
+type StoredSvgExportPeriods = {
+  byProject: Record<string, { startDate: string; endDate: string }>;
+};
+
+function loadStoredSvgExportPeriods(): StoredSvgExportPeriods {
+  if (typeof window === "undefined") {
+    return { byProject: {} };
+  }
+
+  try {
+    const raw = window.localStorage.getItem(SVG_EXPORT_PERIOD_STORAGE_KEY);
+    if (!raw) {
+      return { byProject: {} };
+    }
+
+    const parsed = JSON.parse(raw) as StoredSvgExportPeriods;
+    return {
+      byProject: parsed?.byProject ?? {},
+    };
+  } catch {
+    return { byProject: {} };
+  }
+}
+
+function loadStoredSvgExportPeriod(projectId: number) {
+  return loadStoredSvgExportPeriods().byProject[String(projectId)] ?? null;
+}
+
+function saveStoredSvgExportPeriod(projectId: number, startDate: string, endDate: string) {
+  if (typeof window === "undefined") {
+    return;
+  }
+
+  const stored = loadStoredSvgExportPeriods();
+  stored.byProject[String(projectId)] = { startDate, endDate };
+  window.localStorage.setItem(SVG_EXPORT_PERIOD_STORAGE_KEY, JSON.stringify(stored));
+}
+
 function buildParentTaskCandidates(
   tasks: Task[],
   selectedTask: Task,
@@ -411,13 +451,30 @@ export function App() {
   };
 
   const openSvgExportDialog = () => {
-    setSvgExportStartDate(projectStartDate);
-    setSvgExportEndDate(projectEndDate);
+    const storedPeriod = loadStoredSvgExportPeriod(selectedProjectId);
+    setSvgExportStartDate(storedPeriod?.startDate ?? projectStartDate);
+    setSvgExportEndDate(storedPeriod?.endDate ?? projectEndDate);
     setSvgExportShowOwner(showOwnerInSidebar);
     setSvgExportShowStartDate(showStartDateInSidebar);
     setSvgExportShowEndDate(showEndDateInSidebar);
     setSvgExportShowProgress(showProgressInSidebar);
     setIsSvgExportDialogOpen(true);
+  };
+
+  const handleSvgExportStartDateChange = (value: string) => {
+    setSvgExportStartDate(value);
+    saveStoredSvgExportPeriod(selectedProjectId, value, svgExportEndDate);
+  };
+
+  const handleSvgExportEndDateChange = (value: string) => {
+    setSvgExportEndDate(value);
+    saveStoredSvgExportPeriod(selectedProjectId, svgExportStartDate, value);
+  };
+
+  const handleSvgExportReset = () => {
+    setSvgExportStartDate(projectStartDate);
+    setSvgExportEndDate(projectEndDate);
+    saveStoredSvgExportPeriod(selectedProjectId, projectStartDate, projectEndDate);
   };
 
   const handleSvgExport = () => {
@@ -1648,7 +1705,7 @@ export function App() {
                   <input
                     type="date"
                     value={svgExportStartDate}
-                    onChange={(event) => setSvgExportStartDate(event.target.value)}
+                    onChange={(event) => handleSvgExportStartDateChange(event.target.value)}
                     className="h-10 rounded-md border border-slate-200 bg-white px-3 text-sm text-slate-900 outline-none transition focus:border-cyan-300"
                   />
                 </label>
@@ -1657,10 +1714,20 @@ export function App() {
                   <input
                     type="date"
                     value={svgExportEndDate}
-                    onChange={(event) => setSvgExportEndDate(event.target.value)}
+                    onChange={(event) => handleSvgExportEndDateChange(event.target.value)}
                     className="h-10 rounded-md border border-slate-200 bg-white px-3 text-sm text-slate-900 outline-none transition focus:border-cyan-300"
                   />
                 </label>
+              </div>
+
+              <div className="flex justify-end">
+                <button
+                  type="button"
+                  onClick={handleSvgExportReset}
+                  className="inline-flex h-9 items-center rounded-md border border-slate-200 bg-white px-3 text-sm font-medium text-slate-700 transition hover:border-cyan-300 hover:text-cyan-700"
+                >
+                  リセット
+                </button>
               </div>
 
               <div className="rounded-lg border border-slate-200 bg-slate-50 p-4">
