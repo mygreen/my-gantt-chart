@@ -1,325 +1,193 @@
-# README.md
+# README
 
-# Gantt Chart Web Application
+# My ガントチャート
 
-React + Spring Boot + H2 Database による
-高性能ガントチャートWebアプリケーション。
+React + TypeScript + Spring Boot + H2 Database で構成した、ガントチャート Web アプリです。
 
 ![screenshot](docs/sample.png)
 
-# Docker run
+## 主な機能
 
-```
-docker run -d -p 8080:8080 mygreen/my-gantt-chart
-```
+* タスク、マイルストーン、関連線の編集
+* 親子タスク、折りたたみ、並び替え
+* 土日祝日を除外した進捗計算
+* プロジェクト休日とシステム共通祝日の管理
+* 保存、破棄、再読み込み、バージョン管理
+* 複数プロジェクトの切り替えとコピー
+* イナズマ線表示
+* 期間指定付きの SVG 出力
 
----
+## 技術スタック
 
-# Features
+### Frontend
 
-* ガントチャート表示
-* タスク管理
-* 依存関係（関連線）
-* ドラッグ＆ドロップ
-* SVG関連線描画
-* ズーム
-* 仮想スクロール
+| 項目 | 技術 |
+| --- | --- |
+| Framework | React 19 |
+| Language | TypeScript |
+| Build Tool | Vite |
+| State | Zustand |
+| Styling | Tailwind CSS |
+| Icons | lucide-react |
 
----
+### Backend
 
-# Tech Stack
+| 項目 | 技術 |
+| --- | --- |
+| Framework | Spring Boot 4.0.5 |
+| Language | Java 21 |
+| Build Tool | Gradle / Gradle Wrapper |
+| Database | H2 Database |
+| ORM | Spring Data JPA |
+| Migration | Flyway |
+| Utility | Lombok |
 
-## Frontend
+## ディレクトリ構成
 
-| Category         | Technology   |
-| ---------------- | ------------ |
-| Framework        | React        |
-| Language         | TypeScript   |
-| Build Tool       | Vite         |
-| State Management | Zustand      |
-| Styling          | Tailwind CSS |
-| UI Components    | shadcn/ui    |
-| Rendering        | HTML + SVG   |
-
----
-
-## Backend
-
-| Category   | Technology      |
-| ---------- | --------------- |
-| Framework  | Spring Boot 4   |
-| Language   | Java 21         |
-| Database   | H2 Database     |
-| ORM        | Spring Data JPA |
-| Migration  | Flyway          |
-| Build Tool | Gradle          |
-
----
-
-# Architecture
-
-```text id="fcjlwm"
-Frontend (React)
- ├─ Task Rendering (HTML)
- ├─ Dependency Rendering (SVG)
- └─ Zustand State Management
-
-Backend (Spring Boot)
- ├─ REST API
- ├─ Business Logic
- └─ H2 Database
-```
-
----
-
-# Project Structure
-
-```text id="jlwmq9"
+```text
 root/
-├── frontend/
-├── backend/
-├── docs/
-└── README.md
+├─ frontend/
+├─ backend/
+├─ docs/
+├─ AGENTS.md
+├─ SKILLS.md
+└─ README.md
 ```
 
----
+### Frontend
 
-# Frontend Structure
-
-```text id="jlwm61"
+```text
 frontend/src/
-├── app/
-├── components/
-├── core/
-├── stores/
-├── hooks/
-├── api/
-├── models/
-└── styles/
+├─ api/
+├─ app/
+├─ components/
+├─ core/
+├─ hooks/
+├─ models/
+├─ stores/
+└─ styles/
 ```
 
----
+### Backend
 
-# Backend Structure
-
-```text id="jlwm72"
-backend/src/main/java/com/example/gantt/
-├── controller/
-├── service/
-├── domain/
-├── repository/
-├── dto/
-├── entity/
-└── config/
+```text
+backend/src/main/java/com/gh/mygreen/mygantt/
+├─ config/
+├─ controller/
+├─ dto/
+├─ entity/
+├─ repository/
+└─ service/
 ```
 
----
+## 画面構成
 
-# Rendering Layers
+左ペインは 2 つのタブに分かれます。
 
-```text id="jlwm83"
-GanttRoot
- ├─ HeaderLayer
- ├─ SidebarLayer
- ├─ GridLayer
- ├─ TaskLayer
- ├─ DependencyLayer
- └─ OverlayLayer
-```
+### プロジェクト設定
 
----
+* ガントチャート
+* 基本設定
+* メンバー設定
+* プロジェクト休日
+* バージョン管理
 
-# Setup
+### システム設定
 
-## Prerequisites
+* プロジェクト管理
+* 祝日設定
 
-* Node.js 22+
-* Java 21+
+## Frontend セットアップ
 
----
-
-# Frontend Setup
-
-```bash id="jlwm94"
+```bash
 cd frontend
 npm install
 npm run dev
 ```
 
-Frontend:
+開発 URL:
 
-```text id="jlwm15"
+```text
 http://localhost:5173
 ```
 
----
-
-# Dev Container Setup
-
-WSL の Ubuntu 上の Docker を使う dev container で frontend をビルド可能。
-
-1. リポジトリルートを dev container で開く
-2. 初回起動時に `frontend` で `npm install` が実行される
-3. container 内で以下を実行する
+本番用ビルド:
 
 ```bash
 cd frontend
 npm run build
 ```
 
-開発サーバーから backend API を使う場合:
-
-* frontend は `/api` を相対パスで呼び出す
-* dev container では `VITE_API_BASE_URL=http://localhost:8080` を使用する
-* Vite が `/api` を backend へ proxy するので、browser からの CORS を避けられる
-
-生成物:
+ビルド成果物の出力先:
 
 ```text
 backend/src/main/resources/public
 ```
 
----
+## Backend セットアップ
 
-# Backend Setup
+`backend/env.bat` で `JAVA_HOME_21` を取り込む前提です。
 
-```bash id="jlwm26"
+```bash
 cd backend
-./gradlew bootRun
+env.bat
+gradlew.bat bootRun
 ```
 
-Backend:
+起動 URL:
 
-```text id="jlwm37"
+```text
 http://localhost:8080
 ```
 
----
+## Database
 
-# H2 Database Console
+デフォルトはメモリ H2 です。
 
-```text id="jlwm48"
+### H2 Console
+
+```text
 http://localhost:8080/h2-console
 ```
 
----
+### 接続情報
 
-# H2 Login Settings
+| 項目 | 値 |
+| --- | --- |
+| JDBC URL | jdbc:h2:mem:ganttdb |
+| User | sa |
+| Password | 空 |
 
-| Setting   | Value               |
-| --------- | ------------------- |
-| JDBC URL  | jdbc:h2:mem:ganttdb |
-| User Name | sa                  |
-| Password  | (empty)             |
+## DB 初期化
 
----
+Flyway migration は 2 本に整理しています。
 
-# Example application.yml
+* [backend/src/main/resources/db/migration/V1__init_schema.sql](backend/src/main/resources/db/migration/V1__init_schema.sql)
+* [backend/src/main/resources/db/migration/V2__init_data.sql](backend/src/main/resources/db/migration/V2__init_data.sql)
 
-```yaml id="jlwm59"
-spring:
-  datasource:
-    url: jdbc:h2:mem:ganttdb
-    driver-class-name: org.h2.Driver
-    username: sa
-    password:
+## 保存とバージョン管理
 
-  h2:
-    console:
-      enabled: true
+* 画面上の編集内容は保存ボタンを押したときだけサーバーへ反映されます
+* 保存ごとにバージョンが 1 つ増えます
+* バージョン管理画面から、過去版の内容で新しい版を作る形で復元できます
 
-  jpa:
-    hibernate:
-      ddl-auto: update
-```
+## SVG 出力
 
----
+SVG 出力ダイアログから以下を指定できます。
 
-# API Example
+* 出力期間
+* タスク一覧の出力列
+  * 担当者
+  * 開始日
+  * 終了日
+  * 進捗率
 
-## Get Tasks
+出力期間はプロジェクトごとに `localStorage` へ保存されます。
 
-```http id="jlwm60"
-GET /api/tasks
-```
+## 開発メモ
 
----
+* frontend は backend 前提で動作します
+* fallback の仮データは使いません
+* UI の表示設定の一部は `localStorage` に保存します
+* バックエンドの Java ソースは UTF-8、BOM なし前提です
 
-## Create Task
-
-```http id="jlwm71"
-POST /api/tasks
-```
-
-Request:
-
-```json id="jlwm82"
-{
-  "name": "Design",
-  "startDate": "2026-05-01",
-  "endDate": "2026-05-07"
-}
-```
-
----
-
-# Development Rules
-
-## Frontend
-
-* Functional Components only
-* TypeScript strict mode
-* useEffect最小化
-* DOM query依存禁止
-
----
-
-## Backend
-
-* DTO分離
-* Service Layer必須
-* Controllerを薄く保つ
-
----
-
-# Performance Strategy
-
-* Virtual Scroll
-* SVG Overlay
-* Memoization
-* Layout Cache
-
----
-
-# Dependency Rendering
-
-```text id="jlwm93"
-Task A ─┐
-        └────→ Task B
-```
-
-SVG Overlayレイヤーで描画。
-
----
-
-# Future Roadmap
-
-* [ ] Dependency Management
-* [ ] Drag & Drop
-* [ ] Resize
-* [ ] Zoom
-* [ ] Critical Path
-* [ ] Undo / Redo
-* [ ] Realtime Collaboration
-
----
-
-# License
-
-MIT
-
----
-
-# Author
-
-mygreen

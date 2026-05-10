@@ -1,320 +1,158 @@
-# Skills.md
+# SKILLS
 
-# Codex Skill: React + Spring Boot ガントチャート開発
+# React + Spring Boot ガントチャート開発ガイド
 
-## Purpose
+このファイルは、このリポジトリで実装判断をそろえるための技術ガイドです。
 
-このSkillは、以下の技術構成で高機能ガントチャートWebアプリを実装するための開発ガイドラインを定義する。
+## 技術前提
 
-* Frontend: React + TypeScript
-* Backend: Spring Boot 4
-* Database: H2 Database
-* Rendering: HTML(div) + SVG overlay
-* State Management: Zustand
-* Styling: Tailwind CSS
+### Frontend
 
----
+* React 19
+* TypeScript
+* Zustand
+* Vite
+* Tailwind CSS
+* native SVG
 
-# Frontend Architecture
+### Backend
 
-## Core Principles
+* Spring Boot 4
+* Java 21
+* Spring Data JPA
+* H2 Database
+* Flyway
+* Lombok
 
-* 描画層とビジネスロジックを分離する
-* React Componentに業務ロジックを書かない
-* SVG dependency renderingを独立レイヤー化する
-* useEffect依存設計を避ける
-* derived stateはstateとして持たない
-* virtual scroll前提で設計する
+## Frontend の考え方
 
----
+### ディレクトリ責務
 
-# Recommended Frontend Stack
+* `app/`
+  * 画面構成
+  * メニュー
+  * ダイアログ
+* `components/`
+  * 見た目を持つ UI
+* `core/`
+  * レイアウト計算
+  * 日付計算
+  * SVG 出力
+  * ガント描画補助
+* `stores/`
+  * Zustand state
+* `api/`
+  * backend 通信
 
-| Purpose          | Technology       |
-| ---------------- | ---------------- |
-| UI Framework     | React 19         |
-| Language         | TypeScript       |
-| Build Tool       | Vite             |
-| State Management | Zustand          |
-| Virtual Scroll   | TanStack Virtual |
-| Drag & Drop      | dnd-kit          |
-| Styling          | Tailwind CSS     |
-| UI Components    | shadcn/ui        |
-| SVG Rendering    | native SVG       |
-| API Client       | fetch            |
-| Validation       | zod              |
+### 状態管理
 
----
+次のものは store に置く前提で考える。
 
-# Frontend Directory Structure
+* タスク
+* マイルストーン
+* 関連線
+* 休日
+* メンバー
+* プロジェクト設定
+* 版情報
+* 画面表示設定
 
-```text id="hwzc7f"
-src/
-├── app/
-├── components/
-│   ├── gantt/
-│   │   ├── layers/
-│   │   ├── task/
-│   │   ├── dependency/
-│   │   ├── timeline/
-│   │   └── overlays/
-├── core/
-│   ├── layout/
-│   ├── scheduling/
-│   ├── dependency/
-│   ├── viewport/
-│   └── virtualization/
-├── stores/
-├── hooks/
-├── api/
-├── models/
-├── utils/
-└── styles/
+### UI 実装ルール
+
+* 既存の表示順、用語、操作感を優先
+* 表示列の ON/OFF がある場合は SVG 出力との整合も見る
+* マイルストーンは通常タスクと別物として扱う
+* 文字列は UTF-8 の通常日本語で持つ
+* 文字化けした値を仮ラベルとして使わない
+
+### SVG 出力ルール
+
+* 画面と同じ期間・同じ表示列を基本にする
+* タスク一覧の No. は Web 画面と同じ規則にする
+* カレンダー背景、休日背景、基準日、イナズマ線、関連線を可能な限りそろえる
+* SVG は XML として妥当であること
+
+## Backend の考え方
+
+### パッケージ
+
+```text
+com.gh.mygreen.mygantt
 ```
 
----
+### レイヤ責務
 
-# Gantt Rendering Layers
+* `controller/`
+  * ルーティング
+  * 入出力の受け渡し
+* `service/`
+  * 業務処理
+  * 保存と復元
+* `repository/`
+  * DB アクセス
+* `entity/`
+  * 永続化モデル
+* `dto/`
+  * API 入出力
 
-```text id="kmv8d2"
-GanttRoot
- ├─ HeaderLayer
- ├─ SidebarLayer
- ├─ GridLayer
- ├─ TaskLayer
- ├─ DependencyLayer
- ├─ InteractionLayer
- └─ OverlayLayer
+### DB ルール
+
+* migration は `backend/src/main/resources/db/migration`
+* 初期化は以下 2 本を基準にする
+  * `V1__init_schema.sql`
+  * `V2__init_data.sql`
+* 文字列は UTF-8 日本語を通常記述で扱う
+
+### 保存仕様
+
+* frontend の編集内容は、保存ボタンを押したときだけ backend に反映
+* 保存時にプロジェクト版を増やす
+* 復元は新しい版として保存する
+* プロジェクト共通の設定とシステム共通の設定を分ける
+
+## よくある判断基準
+
+### frontend だけで閉じてよいもの
+
+* ダイアログの開閉
+* 一時的な入力状態
+* SVG 出力ダイアログのプロジェクトごとの前回値
+* 一部の表示設定
+
+### backend まで触るべきもの
+
+* 保存データの追加
+* 版管理に関わる仕様
+* プロジェクトコピーに関わる仕様
+* システム共通設定
+* DB に残る休日やメンバー
+
+## ビルドと実行
+
+### Frontend
+
+```bash
+cd frontend
+npm run build
 ```
 
----
+### Backend
 
-# Rendering Rules
+`env.bat` で `JAVA_HOME_21` を読み込む前提。
 
-## TaskLayer
-
-* HTML div rendering
-* absolute positioning
-* React.memoを使用
-* layout cacheから描画
-
-## DependencyLayer
-
-* SVG overlay rendering
-* path要素を使用
-* DOM query禁止
-* layout cacheから座標計算
-
----
-
-# State Management Rules
-
-## Zustand Store Structure
-
-```ts id="jlwm7s"
-type GanttStore = {
-  tasks: Task[]
-  dependencies: Dependency[]
-  viewport: Viewport
-  selection: SelectionState
-}
+```bash
+cd backend
+env.bat
+gradlew.bat bootRun
 ```
 
----
+## docs 更新の目安
 
-# useEffect Rules
+次の変更では README / AGENTS / SKILLS の更新を検討する。
 
-## Avoid
+* 画面の大きな増減
+* 保存、復元、版管理の仕様変更
+* DB 初期化方式の変更
+* build / run 手順の変更
+* SVG 出力の仕様変更
 
-* state同期用途
-* derived state生成
-* render chaining
-
-## Allowed
-
-* API access
-* event listener
-* websocket
-* timer
-
----
-
-# Backend Architecture
-
-## Core Principles
-
-* ドメインロジックをBackendへ集約
-* Frontendを薄く保つ
-* REST API first
-* Transaction boundaryを明確化
-
----
-
-# Recommended Backend Stack
-
-| Purpose    | Technology         |
-| ---------- | ------------------ |
-| Framework  | Spring Boot 4      |
-| Language   | Java 21            |
-| ORM        | Spring Data JPA    |
-| Database   | H2 Database        |
-| Migration  | Flyway             |
-| Validation | Jakarta Validation |
-| Security   | Spring Security    |
-| Build Tool | Gradle             |
-
----
-
-# Backend Directory Structure
-
-```text id="njlwm5"
-src/main/java/com/example/gantt/
-├── controller/
-├── service/
-├── domain/
-├── repository/
-├── dto/
-├── entity/
-├── config/
-└── security/
-```
-
----
-
-# Database Configuration
-
-## H2 Console
-
-```text id="b17dxy"
-http://localhost:8080/h2-console
-```
-
----
-
-# Recommended JDBC URL
-
-```properties id="95k6kw"
-jdbc:h2:mem:ganttdb
-```
-
----
-
-# Recommended application.yml
-
-```yaml id="jqjlwm"
-spring:
-  datasource:
-    url: jdbc:h2:mem:ganttdb
-    driver-class-name: org.h2.Driver
-    username: sa
-    password:
-
-  h2:
-    console:
-      enabled: true
-
-  jpa:
-    hibernate:
-      ddl-auto: update
-
-    show-sql: true
-```
-
----
-
-# API Design Rules
-
-## REST Style
-
-```text id="jlwm47"
-GET    /api/tasks
-POST   /api/tasks
-PATCH  /api/tasks/{id}
-DELETE /api/tasks/{id}
-```
-
----
-
-# Entity Rules
-
-## Required
-
-* DTO separation
-* Service layer
-* validation layer
-* immutable DTO
-
----
-
-# Dependency Rendering Rules
-
-Use SVG path rendering.
-
-```text id="3mjlwm"
-Task A ─┐
-        └────→ Task B
-```
-
----
-
-# Layout Engine Rules
-
-## Layout Cache Required
-
-```ts id="o2t3lg"
-type TaskLayout = {
-  x: number
-  y: number
-  width: number
-  height: number
-}
-```
-
----
-
-# Performance Rules
-
-## Required
-
-* virtual scroll
-* memoization
-* transform-based rendering
-
-## Forbidden
-
-* getBoundingClientRect大量使用
-* unnecessary rerender
-
----
-
-# Recommended Development Order
-
-## Phase 1
-
-* Timeline rendering
-* Task rendering
-* Scroll sync
-
-## Phase 2
-
-* Dependency lines
-* Drag & Drop
-
-## Phase 3
-
-* Virtual scroll
-* Zoom
-
----
-
-# Final Guideline
-
-最重要なのはFrameworkではない。
-
-以下を最優先で設計すること。
-
-* Core layout engine
-* viewport synchronization
-* virtualization
-* dependency routing
-* state architecture
