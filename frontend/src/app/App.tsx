@@ -15,6 +15,7 @@ import {
   GitBranch,
   History,
   MoveHorizontal,
+  Printer,
   RefreshCw,
   RotateCcw,
   Rows3,
@@ -26,6 +27,8 @@ import {
   Users,
 } from "lucide-react";
 import { GanttBoard } from "@/components/gantt/GanttBoard";
+import { exportGanttAsSvg } from "@/core/export/ganttSvg";
+import { buildVisibleTasks } from "@/core/taskTree";
 import type { Holiday, Task, TimelineScale } from "@/models/gantt";
 import { useGanttStore } from "@/stores/useGanttStore";
 import { cn } from "@/utils/cn";
@@ -142,6 +145,13 @@ export function App() {
   const [copyDependencies, setCopyDependencies] = useState(false);
   const [copyHolidays, setCopyHolidays] = useState(true);
   const [copyMembers, setCopyMembers] = useState(true);
+  const [isSvgExportDialogOpen, setIsSvgExportDialogOpen] = useState(false);
+  const [svgExportStartDate, setSvgExportStartDate] = useState("");
+  const [svgExportEndDate, setSvgExportEndDate] = useState("");
+  const [svgExportShowOwner, setSvgExportShowOwner] = useState(false);
+  const [svgExportShowStartDate, setSvgExportShowStartDate] = useState(false);
+  const [svgExportShowEndDate, setSvgExportShowEndDate] = useState(false);
+  const [svgExportShowProgress, setSvgExportShowProgress] = useState(false);
   const holidayUploadRef = useRef<HTMLInputElement | null>(null);
   const systemHolidayUploadRef = useRef<HTMLInputElement | null>(null);
 
@@ -153,6 +163,7 @@ export function App() {
   const projectEndDate = useGanttStore((state) => state.projectEndDate);
   const members = useGanttStore((state) => state.members);
   const tasks = useGanttStore((state) => state.tasks);
+  const dependencies = useGanttStore((state) => state.dependencies);
   const holidays = useGanttStore((state) => state.holidays);
   const projectHolidays = useGanttStore((state) => state.projectHolidays);
   const systemHolidays = useGanttStore((state) => state.systemHolidays);
@@ -177,6 +188,7 @@ export function App() {
   const interactionMode = useGanttStore((state) => state.interactionMode);
   const pendingDependencyFromTaskId = useGanttStore((state) => state.pendingDependencyFromTaskId);
   const selectedTaskId = useGanttStore((state) => state.selectedTaskId);
+  const collapsedTaskIds = useGanttStore((state) => state.collapsedTaskIds);
   const showOwnerInSidebar = useGanttStore((state) => state.showOwnerInSidebar);
   const showStartDateInSidebar = useGanttStore((state) => state.showStartDateInSidebar);
   const showEndDateInSidebar = useGanttStore((state) => state.showEndDateInSidebar);
@@ -241,6 +253,7 @@ export function App() {
   );
   const memberNames = useMemo(() => members.map((member) => member.name), [members]);
   const visibleViews = sidebarSection === "project" ? projectViews : systemViews;
+  const hasSvgExportRange = svgExportStartDate.length > 0 && svgExportEndDate.length > 0;
 
   useEffect(() => {
     void loadTasks();
@@ -396,6 +409,59 @@ export function App() {
     await loadVersionHistory();
     setActiveView("gantt");
   };
+
+  const openSvgExportDialog = () => {
+    setSvgExportStartDate(projectStartDate);
+    setSvgExportEndDate(projectEndDate);
+    setSvgExportShowOwner(showOwnerInSidebar);
+    setSvgExportShowStartDate(showStartDateInSidebar);
+    setSvgExportShowEndDate(showEndDateInSidebar);
+    setSvgExportShowProgress(showProgressInSidebar);
+    setIsSvgExportDialogOpen(true);
+  };
+
+  const handleSvgExport = () => {
+    if (!hasSvgExportRange) {
+      window.alert("出力期間の開始日と終了日を入力してください。");
+      return;
+    }
+
+    if (svgExportEndDate < svgExportStartDate) {
+      window.alert("終了日は開始日以降の日付を指定してください。");
+      return;
+    }
+
+    exportGanttAsSvg({
+      projectName,
+      projectVersion,
+      timelineScale,
+      tasks,
+      dependencies,
+      holidays,
+      collapsedTaskIds,
+      excludeNonWorkingDays,
+      showBaseline,
+      baselineDate,
+      periodStartDate: svgExportStartDate,
+      periodEndDate: svgExportEndDate,
+      columns: {
+        owner: svgExportShowOwner,
+        startDate: svgExportShowStartDate,
+        endDate: svgExportShowEndDate,
+        progress: svgExportShowProgress,
+      },
+    });
+    setIsSvgExportDialogOpen(false);
+  };
+
+  const exportVisibleTasks = useMemo(
+    () => buildVisibleTasks(tasks, collapsedTaskIds),
+    [collapsedTaskIds, tasks],
+  );
+  const exportMilestoneCount = useMemo(
+    () => exportVisibleTasks.filter((task) => task.type === "milestone").length,
+    [exportVisibleTasks],
+  );
 
   return (
     <main className="h-screen overflow-hidden bg-slate-50 text-slate-900">
@@ -566,6 +632,18 @@ export function App() {
                         className="inline-flex h-9 w-9 items-center justify-center rounded text-sm font-medium text-slate-700 transition hover:bg-cyan-50 hover:text-cyan-700"
                       >
                         <RefreshCw className="h-4 w-4" />
+                      </button>
+                    </div>
+
+                    <div className="inline-flex rounded-md border border-slate-200 bg-white p-1">
+                      <button
+                        type="button"
+                        onClick={openSvgExportDialog}
+                        title="SVG出力"
+                        aria-label="SVG出力"
+                        className="inline-flex h-9 w-9 items-center justify-center rounded text-sm font-medium text-slate-700 transition hover:bg-cyan-50 hover:text-cyan-700"
+                      >
+                        <Printer className="h-4 w-4" />
                       </button>
                     </div>
 
@@ -1542,6 +1620,123 @@ export function App() {
           ) : null}
         </div>
       </div>
+
+      {isSvgExportDialogOpen ? (
+        <div className="fixed inset-0 z-[80] flex items-center justify-center bg-slate-900/30 px-4">
+          <div className="w-full max-w-[640px] rounded-xl border border-slate-200 bg-white p-5 shadow-2xl">
+            <div className="flex items-start justify-between gap-4">
+              <div>
+                <h3 className="text-lg font-semibold text-slate-900">SVG出力</h3>
+                <p className="mt-1 text-sm text-slate-500">
+                  出力期間とタスク一覧に含める列を選んで、現在のガントチャートを SVG として出力します。
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setIsSvgExportDialogOpen(false)}
+                className="inline-flex h-9 w-9 items-center justify-center rounded-md border border-slate-200 bg-white text-slate-500 transition hover:border-cyan-300 hover:text-cyan-700"
+                aria-label="SVG出力ダイアログを閉じる"
+              >
+                ×
+              </button>
+            </div>
+
+            <div className="mt-5 grid gap-4">
+              <div className="grid gap-4 sm:grid-cols-2">
+                <label className="flex flex-col gap-1">
+                  <span className="text-[11px] font-medium text-slate-600">開始日</span>
+                  <input
+                    type="date"
+                    value={svgExportStartDate}
+                    onChange={(event) => setSvgExportStartDate(event.target.value)}
+                    className="h-10 rounded-md border border-slate-200 bg-white px-3 text-sm text-slate-900 outline-none transition focus:border-cyan-300"
+                  />
+                </label>
+                <label className="flex flex-col gap-1">
+                  <span className="text-[11px] font-medium text-slate-600">終了日</span>
+                  <input
+                    type="date"
+                    value={svgExportEndDate}
+                    onChange={(event) => setSvgExportEndDate(event.target.value)}
+                    className="h-10 rounded-md border border-slate-200 bg-white px-3 text-sm text-slate-900 outline-none transition focus:border-cyan-300"
+                  />
+                </label>
+              </div>
+
+              <div className="rounded-lg border border-slate-200 bg-slate-50 p-4">
+                <div className="flex items-center justify-between gap-3">
+                  <div>
+                    <h4 className="text-sm font-semibold text-slate-900">タスク一覧の出力列</h4>
+                    <p className="mt-1 text-xs text-slate-500">
+                      名称、No.、工数は常に出力されます。必要な列だけ追加で含められます。
+                    </p>
+                  </div>
+                  <div className="text-right text-xs text-slate-500">
+                    <p>{`出力対象タスク: ${Math.max(exportVisibleTasks.length - exportMilestoneCount, 0)}件`}</p>
+                    <p>{`マイルストーン: ${exportMilestoneCount}件`}</p>
+                  </div>
+                </div>
+
+                <div className="mt-4 grid gap-3 sm:grid-cols-2">
+                  {[
+                    {
+                      label: "担当者",
+                      checked: svgExportShowOwner,
+                      onChange: setSvgExportShowOwner,
+                    },
+                    {
+                      label: "開始日",
+                      checked: svgExportShowStartDate,
+                      onChange: setSvgExportShowStartDate,
+                    },
+                    {
+                      label: "終了日",
+                      checked: svgExportShowEndDate,
+                      onChange: setSvgExportShowEndDate,
+                    },
+                    {
+                      label: "進捗率",
+                      checked: svgExportShowProgress,
+                      onChange: setSvgExportShowProgress,
+                    },
+                  ].map((item) => (
+                    <label
+                      key={item.label}
+                      className="inline-flex items-center gap-2 rounded-md border border-slate-200 bg-white px-3 py-2 text-sm text-slate-700"
+                    >
+                      <input
+                        type="checkbox"
+                        checked={item.checked}
+                        onChange={(event) => item.onChange(event.target.checked)}
+                        className="h-4 w-4 rounded border-slate-300 text-cyan-600 focus:ring-cyan-300"
+                      />
+                      <span>{item.label}</span>
+                    </label>
+                  ))}
+                </div>
+              </div>
+            </div>
+
+            <div className="mt-5 flex items-center justify-end gap-2">
+              <button
+                type="button"
+                onClick={() => setIsSvgExportDialogOpen(false)}
+                className="inline-flex h-10 items-center rounded-md border border-slate-200 bg-white px-4 text-sm font-medium text-slate-700 transition hover:border-cyan-300 hover:text-cyan-700"
+              >
+                キャンセル
+              </button>
+              <button
+                type="button"
+                onClick={handleSvgExport}
+                className="inline-flex h-10 items-center gap-2 rounded-md border border-cyan-200 bg-cyan-50 px-4 text-sm font-medium text-cyan-700 transition hover:border-cyan-300 hover:bg-cyan-100"
+              >
+                <Printer className="h-4 w-4" />
+                SVG出力
+              </button>
+            </div>
+          </div>
+        </div>
+      ) : null}
     </main>
   );
 }
